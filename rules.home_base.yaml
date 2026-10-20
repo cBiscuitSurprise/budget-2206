@@ -1,0 +1,21 @@
+# Home Base rental (219 Pawnee) partnership checking. Same format as rules.yaml; amounts are shown at the household's share.
+Rental income:
+  - {category: Rent — Home Base Property Mgmt, kind: income, match: ["HOME BASE PROPER"]}
+  - {category: "Deposits (unidentified — partner contributions?)", kind: income, match: ["^Deposit$"]}
+
+Debt service:
+  - {category: Mortgage — Pawnee, kind: spend, match: ["Monthly Mortgage Payment", "Regular Payment From Checking", "ONLINE TRANSFER TO"]}
+
+Property costs:
+  - {category: Insurance — Travelers, kind: spend, match: [TRAVELERS]}
+  - {category: Property tax, kind: spend, match: [CAMDEN COUNT, COLLECTOR]}
+  - {category: Repairs & maintenance, kind: spend, match: [PLUMBI, SEPTIC, LAWN, HVAC, ROOF, HOME DEPOT, LOWES, MENARDS]}
+  - {category: "Priority Adv (?)", kind: spend, match: ["PRIORITY ADV"]}
+  - {category: "Evers and Co (?)", kind: spend, match: ["EVERS AND CO"]}
+  - {category: Bank fees, kind: spend, match: ["SERVICE CHARGE", "ACH PER", "ACH ITEM", "ACH .*CHARGES"]}
+  - {category: Postage, kind: spend, match: [USPS]}
+  - {category: Legal — Lakeside Law, kind: spend, match: ["LAKESIDE LAW"]}
+
+Unidentified:
+  - {category: Checks (unidentified), kind: spend, match: ["^Check$"]}
+  - {category: Checks (unidentified), kind: spend, trntype: CHECK}

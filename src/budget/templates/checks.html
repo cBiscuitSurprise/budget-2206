@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check labeling</title>
+<style>
+:root{--surface:#fcfcfb;--panel:#fff;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--s1:#2a78d6;--ok:#2f8a4a;--hover:rgba(0,0,0,.04)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--surface:#1a1a19;--panel:#222221;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--s1:#3987e5;--ok:#4fae6a;--hover:rgba(255,255,255,.05)}}
+:root[data-theme="dark"]{--surface:#1a1a19;--panel:#222221;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--s1:#3987e5;--ok:#4fae6a;--hover:rgba(255,255,255,.05)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:20px;margin:0 0 2px}
+.sub,.muted{color:var(--muted);font-size:12.5px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0;position:sticky;top:0;background:var(--surface);padding:8px 0;z-index:2;border-bottom:1px solid var(--grid)}
+select,input,button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--grid);border-radius:6px;padding:5px 8px}
+button{cursor:pointer}
+button.primary{background:var(--s1);border-color:var(--s1);color:#fff}
+.ck{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:12px;margin-bottom:10px}
+.ck.active{outline:2px solid var(--s1)}
+.ck.done{opacity:.55}
+.ck .img{min-height:110px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--grid);border-radius:6px;overflow:hidden;background:var(--surface)}
+.ck .img img{width:100%;height:auto;display:block;cursor:zoom-in}
+.meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.amt{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.cur{margin:4px 0 8px}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:10px;border:1px solid var(--grid);color:var(--ink2)}
+.tag.ok{border-color:var(--ok);color:var(--ok)}
+.sug{font-size:12.5px;color:var(--ink2);background:var(--hover);border-radius:6px;padding:6px 8px;margin-bottom:8px}
+.form{display:grid;gap:6px}
+.form input{width:100%}
+.row{display:flex;gap:6px;align-items:center}
+.status{font-size:12px;color:var(--muted);min-height:16px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:9;cursor:zoom-out}
+#zoom img{max-width:96vw;max-height:94vh;background:#fff}
+kbd{font:11px ui-monospace,monospace;border:1px solid var(--grid);border-radius:4px;padding:0 4px}
+@media (max-width:720px){.ck{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Checks</h1>
+  <div class="sub" id="summary"></div>
+  <div class="bar">
+    <select id="ent" aria-label="Entity"></select>
+    <label><input type="checkbox" id="open" checked> Unlabeled only</label>
+    <label><input type="checkbox" id="withimg"> With image only</label>
+    <input id="q" type="search" placeholder="Search # / amount / label" aria-label="Search">
+    <span class="muted"><kbd>Enter</kbd> save &amp; next · <kbd>Esc</kbd> close image · type <code>Group › Category</code> for a new one</span>
+  </div>
+  <div id="list"></div>
+</main>
+<div id="zoom"><img alt="Check image"></div>
+<datalist id="opts-personal"></datalist>
+<script>
+const D=/*__DATA__*/null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>(v<0?'−':'')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const SEP=' › ';
+const store={get(k,d){try{const v=sessionStorage.getItem('checks:'+k);return v===null?d:JSON.parse(v)}catch{return d}},set(k,v){try{sessionStorage.setItem('checks:'+k,JSON.stringify(v))}catch{}}};
+
+for(const [e,opts] of Object.entries(D.options)){
+  let dl=document.getElementById('opts-'+e);
+  if(!dl){dl=document.createElement('datalist');dl.id='opts-'+e;document.body.appendChild(dl)}
+  dl.innerHTML=opts.map(o=>`<option value="${esc(o.g+SEP+o.c)}">`).join('');
+}
+const ents=[...new Set(D.checks.map(c=>c.entity))];
+$('#ent').innerHTML=`<option value="">All entities</option>`+ents.map(e=>`<option value="${esc(e)}">${esc(D.entities[e]||e)}</option>`).join('');
+$('#ent').value=store.get('ent','');$('#open').checked=store.get('open',true);$('#withimg').checked=store.get('withimg',false);
+
+function parseLabel(entity,text){
+  const t=text.trim();if(!t)return {group:'',category:'',kind:''};
+  const hit=(D.options[entity]||[]).find(o=>o.g+SEP+o.c===t||o.c===t);
+  if(hit)return {group:hit.g,category:hit.c,kind:hit.k};
+  const [g,c]=t.includes('›')?t.split('›').map(s=>s.trim()):['Checks (labeled)',t];
+  return {group:g,category:c,kind:'spend'};
+}
+const current=c=>c.labeled?(c.group+SEP+c.category):'';
+
+function visible(){
+  const ent=$('#ent').value,open=$('#open').checked,img=$('#withimg').checked,q=$('#q').value.trim().toLowerCase();
+  return D.checks.filter(c=>(!ent||c.entity===ent)&&(!open||!c.labeled||c._justSaved)&&(!img||c.image)
+    &&(!q||[c.checknum,Math.abs(c.amount).toFixed(2),c.category,c.note,c.posted,c.short].join(' ').toLowerCase().includes(q)));
+}
+function draw(){
+  const all=D.checks,lab=all.filter(c=>c.labeled).length,withImg=all.filter(c=>c.image).length;
+  $('#summary').textContent=`${all.length} checks · ${lab} labeled · ${withImg} with images · images live in statements/checks/<account id>/<check#>.png`;
+  const V=visible();
+  $('#list').innerHTML=V.length?V.map(c=>{
+    const s=c.suggest||{},sug=[s.payee&&`Payee: ${esc(s.payee)}`,s.memo&&`Memo: ${esc(s.memo)}`].filter(Boolean).join(' · ');
+    const pre=current(c)||(s.category?(s.group?s.group+SEP:'')+s.category:'');
+    return `<section class="ck${c.labeled?' done':''}" data-id="${esc(c.fitid)}">
+      <div class="img">${c.image?(c.image.endsWith('.pdf')?`<a href="${esc(c.image)}" target="_blank" rel="noopener">Open PDF</a>`:`<img loading="lazy" src="${esc(c.image)}" alt="Check ${esc(c.checknum)}">`):'<span class="muted">No image yet</span>'}</div>
+      <div>
+        <div class="meta"><div><b>#${esc(c.checknum||'—')}</b> · ${esc(c.posted)} · ${esc(c.short)}</div><div class="amt">${money(c.amount)}</div></div>
+        <div class="cur">${c.labeled?`<span class="tag ok">✓ ${esc(current(c))}</span>`:`<span class="tag">${esc(c.category)}</span>`} <span class="muted">${esc(D.entities[c.entity]||c.entity)}</span></div>
+        ${sug?`<div class="sug">${sug}</div>`:''}
+        <div class="form">
+          <input class="cat" list="opts-${esc(c.entity)}" placeholder="Category (Group › Category)" value="${esc(pre)}" aria-label="Category">
+          <input class="note" placeholder="Note (payee, purpose)" value="${esc(c.note||[s.payee,s.memo].filter(Boolean).join(' — '))}" aria-label="Note">
+          <div class="row"><button class="primary save" type="button">Save</button>${c.labeled?'<button class="clear" type="button">Unlabel</button>':''}<span class="status"></span></div>
+        </div>
+      </div></section>`}).join(''):'<p class="muted">Nothing to label with these filters.</p>';
+}
+async function save(sec,clear){
+  const c=D.checks.find(x=>x.fitid===sec.dataset.id),st=sec.querySelector('.status');
+  const lab=clear?{group:'',category:'',kind:''}:parseLabel(c.entity,sec.querySelector('.cat').value);
+  const note=clear?'':sec.querySelector('.note').value;
+  if(!clear&&!lab.category){st.textContent='Pick a category first';return false}
+  st.textContent='Saving…';
+  try{
+    const r=await fetch('/label',{method:'POST',headers:{'Content-Type':'application/json','X-Budget':'1'},body:JSON.stringify({key:c.fitid,...lab,note})});
+    if(!r.ok)throw new Error(await r.text());
+  }catch(e){st.textContent='Failed: '+e.message;return false}
+  Object.assign(c,lab.category?{group:lab.group,category:lab.category,note,labeled:true,_justSaved:true}:{labeled:false,note:''});
+  sec.classList.toggle('done',c.labeled);
+  sec.querySelector('.cur').innerHTML=c.labeled?`<span class="tag ok">✓ ${esc(current(c))}</span>`:'<span class="tag">Unlabeled</span>';
+  st.textContent=c.labeled?'Saved':'Cleared';
+  return true;
+}
+function focusNext(sec){
+  const nxt=sec.nextElementSibling;
+  document.querySelectorAll('.ck.active').forEach(s=>s.classList.remove('active'));
+  if(nxt){nxt.classList.add('active');nxt.scrollIntoView({block:'start',behavior:'smooth'});nxt.querySelector('.cat').focus()}
+}
+$('#list').addEventListener('click',async e=>{
+  const sec=e.target.closest('.ck');if(!sec)return;
+  if(e.target.matches('img')){$('#zoom img').src=e.target.src;$('#zoom').style.display='flex';return}
+  if(e.target.matches('.save')&&await save(sec,false))focusNext(sec);
+  if(e.target.matches('.clear'))await save(sec,true);
+});
+$('#list').addEventListener('keydown',async e=>{
+  if(e.key!=='Enter'||!e.target.matches('input'))return;
+  e.preventDefault();const sec=e.target.closest('.ck');
+  if(e.target.matches('.cat')){sec.querySelector('.note').focus();return}
+  if(await save(sec,false))focusNext(sec);
+});
+$('#list').addEventListener('focusin',e=>{const sec=e.target.closest('.ck');document.querySelectorAll('.ck.active').forEach(s=>s!==sec&&s.classList.remove('active'));sec?.classList.add('active')});
+$('#zoom').addEventListener('click',()=>$('#zoom').style.display='none');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#zoom').style.display='none'});
+for(const id of ['ent','open','withimg'])$('#'+id).addEventListener('change',e=>{store.set(id,e.target.type==='checkbox'?e.target.checked:e.target.value);draw()});
+$('#q').addEventListener('input',draw);
+draw();
+
+let ver=null;
+setInterval(async()=>{try{const t=await(await fetch('/version',{cache:'no-store'})).text();
+  const busy=document.activeElement?.matches('input:not([type=checkbox]):not([type=search])');
+  if(ver&&t!==ver&&!busy)location.reload();if(!busy)ver=t}catch{}},3000);
+</script>
+</body>
+</html>

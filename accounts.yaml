@@ -1,0 +1,29 @@
+# actual: false keeps an account out of Actual (still in the report and payoff). role: anchor (sets entity window) | savings | card | loan (excluded from flow; Debts view). share scales an entity's amounts.
+entities:
+  personal: {name: Personal}
+  home_base: {name: Home Base rental, share: 0.5, note: "4-way partnership; amounts shown at your 50% share"}
+  sqez: {name: SQeZ, note: Nourished Nest LLC, all_in: [Paid SQeZ expenses personally, SQeZ — Square deposits]}
+
+accounts:
+  "152307503325": {name: US Bank Joint Checking, short: USB-3325, role: anchor, entity: personal}
+  "252302577082": {name: US Bank Savings, short: USB-7082, role: savings, entity: personal}
+  "7014": {name: Capital One Card, short: C1-7014, role: card, entity: personal}
+  "152321820663": {name: Dogwood checking (house flip), short: USB-0663, role: checking, entity: personal, actual: false}
+  "152321820663:creditline": {name: Dogwood reserve line (overdraft credit), short: USB-RL, role: card, entity: personal, actual: false}
+  "559257XXXXXX3173": {name: Dogwood credit card (house flip), short: USB-3173, role: card, entity: personal, actual: false}
+  "2016": {name: "Home Depot card (Dogwood, reno supplies)", short: HD-2016, role: card, entity: personal}
+  "110002092": {name: High Ridge mortgage, short: MA-HighRidge, role: loan, entity: personal}
+  "1102049": {name: Clara savings, short: Clara, role: savings, entity: personal, kids: true}
+  "1102050": {name: Hazel savings, short: Hazel, role: savings, entity: personal, kids: true}
+  "1102051": {name: Ruby savings, short: Ruby, role: savings, entity: personal, kids: true}
+  "728349": {name: Home Base checking, short: MA-HomeBase, role: anchor, entity: home_base}
+  "40195315": {name: Pawnee mortgage, short: MA-Pawnee, role: loan, entity: home_base}
+  "9013318": {name: Nourished Nest checking, short: MA-3318, role: anchor, entity: sqez}
+  "300001262": {name: SQeZ loan, short: MA-SQeZloan, role: loan, entity: sqez}
+  "1037132510-1007": {name: SQeZ Chase business card, short: SQeZ-CC, role: card, entity: sqez}
+
+cardholders:
+  "7014": Card ••7014
+  "9934": Card ••9934
+  "3563": Card ••3563
+  "2034": HD ••2034 (Amanda)

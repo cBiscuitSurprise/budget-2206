@@ -1,0 +1,7 @@
+# Each ATM withdrawal is transferred to the Cash account, split across these envelopes (shares sum to 1).
+default:
+  Restaurants: .25
+  Groceries: .5
+  Fun money: .25
+# months: {"2026-09": {Restaurants: .5, "Fun money": .5}}
+months: {}

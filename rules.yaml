@@ -1,0 +1,133 @@
+# Personal entity. group -> ordered rules; first match wins; `match` is case-insensitive regex on payee + memo; "?" marks a guess.
+Transfers:
+  - {category: Reserve line draw (overdraft), kind: transfer, accounts: ["152321820663", "152321820663:creditline"], match: ["OD PROTECTION TRANSFER"]}
+  - {category: Reserve line payment, kind: transfer, since: 2026-04-18, match: ["AUTO PAYMENT TO RESERVE LINE"]}
+  - {category: Reserve line payment, kind: transfer, accounts: ["152321820663:creditline"], match: ["RESERVE LINE PAYMENT", "PAYMENT TO CREDIT LINE"]}
+  - {category: Savings ↔ checking, kind: transfer, match: ["FUNDS TRANSFER-(DEBIT|CREDIT)", "OD PROTECTION TRANSFER"]}
+  - category: Capital One payment
+    kind: transfer
+    match: ["WEB AUTHORIZED PMT CAPITAL ONE", "CAPITAL ONE (MOBILE|AUTOPAY|ONLINE) PYMT"]
+  - {category: Home Depot card payment, kind: transfer, match: ["^AUTOPAY PAYMENT THANK YOU"]}
+  - {category: Home Depot card payment, kind: transfer, since: 2025-10-20, match: ["WEB AUTHORIZED PMT HOME DEPOT"]}
+  - {category: Between US Bank accounts, kind: transfer, since: 2026-04-18, match: ["MOBILE BANKING TRANSFER"]}
+  - category: Dogwood card payment
+    kind: transfer
+    since: 2026-04-18
+    match: ["ELECTRONIC WITHDRAWAL CARDMEMBER", "ELECTRONIC WITHDRAWAL U\\.S\\. BANK", "MOBILE BANKING PAYMENT TO CREDIT"]
+  - category: Dogwood card payment
+    kind: transfer
+    accounts: ["559257XXXXXX3173"]
+    match: ["PAYMENT +THANK YOU", "PAYMENT REVERSAL"]
+
+Income:
+  - {category: Kids savings deposits, kind: income, match: ["^Deposit$"], accounts: ["1102049", "1102050", "1102051"]}
+  - {category: Casey — Parete Group, kind: income, match: ["PARETE GR"]}
+  - {category: Amanda — Alpha Engineering, kind: income, match: ["DEPOSIT ALPHA ENGINEE"]}
+  - {category: Casey — other contracts, kind: income, match: ["ELIASSEN"]}
+  - {category: SQeZ — Square deposits, kind: income, match: ["Square Inc"]}
+  - {category: Tax refunds, kind: income, match: ["IRS +TREAS", "MO DEPT REVEN"]}
+  - {category: Investment withdrawals, kind: income, match: ["SCHWAB BROKER", "PROSPER MARKE"]}
+  - category: Large deposits (unidentified)
+    kind: income
+    match: ["^DEPOSIT$", "WIRE TRANSFER DEPOSIT", "MOBILE CHECK DEPOSIT"]
+  - {category: Transfers in (unidentified source), kind: income, match: ["MOBILE BANKING TRANSFER DEPOSIT"]}
+  - {category: Card rewards, kind: income, match: ["CASH BACK REWARD", "REWARDS REDEEMED"]}
+  - {category: Savings interest, kind: income, match: ["^(Auto )?Interest$"]}
+  - {category: Rent — High Ridge (Maryellen), kind: income, match: ["ZELLE INSTANT PMT FROM MARYELLEN"]}
+  - {category: Other income, kind: income, match: ["VISA DIRECT VENMO", "ZELLE INSTANT PMT FROM", "REAL TIME PAYMENT FROM VENMO"]}
+
+Debt service:
+  - {category: Mortgage — Valon, kind: spend, match: ["Valon"]}
+  - {category: Mortgage — High Ridge, kind: spend, match: ["MID AMERIC"]}
+  - {category: Truck — GM Financial, kind: spend, match: ["GM Financi"]}
+  - {category: Synchrony card payment, kind: spend, match: ["SYNCHRONY"]}
+  - {category: Minivan loan — Bridgecrest, kind: spend, match: ["Bridgecres"]}
+  - category: Credit card interest & fees
+    kind: spend
+    match: ["INTEREST CHARGE", "LATE FEE", "ANNUAL FEE", "^FINANCE CHARGE$", "RETURN CHECK FEE",
+            "RETURNED PAYMENT FEE", "OVERLIMIT FEE", "ANNUAL MEMBERSHIP FEE"]
+  - {category: Camper 1 loan, kind: spend, match: ["PMT AMANDA R BOYE"]}
+  - {category: Camper 2 loan — Bank of America, kind: spend, match: ["BKAMERICA"]}
+  - {category: Garden shed payment, kind: spend, match: ["BACKYARD & BEYOND"]}
+  - {category: Reserve line interest & OD fees, kind: spend, match: ["SERVICE CHARGE - OD", "^INTEREST ASSESSED"]}
+  - {category: US Bank reserve line (OD credit), kind: spend, match: ["PAYMENT TO RESERVE LINE"]}
+  - category: "Other card payments (cards not loaded)?"
+    kind: spend
+    match: ["ELECTRONIC WITHDRAWAL CARDMEMBER", "ELECTRONIC WITHDRAWAL U\\.S\\. BANK", "MOBILE BANKING PAYMENT TO CREDIT"]
+
+Taxes:
+  - {category: IRS payments, kind: spend, match: ["IRS", "US TREASURY"]}
+  - {category: Property tax, kind: spend, match: ["COLLECTOR"]}
+
+Home & utilities:
+  - {category: Electric — High Ridge (Ameren), kind: spend, match: ["SPI\\*AMERENUE"]}
+  - {category: Electric — Windjammer (Ameren), kind: spend, match: ["AMEREN"]}
+  - {category: Water — PWSD, kind: spend, match: ["PWSD"]}
+  - {category: Internet — Windjammer, kind: spend, match: ["ELECTRONIC WITHDRAWAL SPECTRUM"]}
+  - {category: Internet — High Ridge, kind: spend, match: ["SPECTRUM"]}
+  - {category: Gas — Summit, kind: spend, match: ["SUMMIT UTILITIES"]}
+  - {category: Life insurance, kind: spend, match: ["STATE FARM"]}
+  - {category: Life insurance, kind: spend, match: ["ELECTRONIC WITHDRAWAL AMERICAN F"]}
+  - {category: Home & auto insurance, kind: spend, match: ["AMERICAN FAMI"]}
+  - {category: Home security, kind: spend, match: [SIMPLISAFE]}
+  - category: Home services
+    kind: spend
+    match: [LAWN CARE, SEPTIC, "FERRELL\\*GAS", PROPERTY INSPECT, PEST]
+
+Construction & repairs:
+  - category: Contractors
+    kind: spend
+    match: [ROOFING, BOBCA, IRELAND CONST, "ALPHA ?ENGIN", INSULATION, HVAC, DISASTER RESTORATION,
+            HEATING AND COOLI, PLUMBING, TREE SOLUT, CAPTIVA CONTAINER, LAKE MOVERS]
+  - {category: Hardware & building supplies, kind: spend, match: [LOWES, MENARDS, HOME DEPOT, HARBOR FREIGHT]}
+
+Crossover → SQeZ:
+  - {category: Paid SQeZ expenses personally, kind: spend, match: [JUICED, WESTROCK, SYSCO]}
+  - {category: Purchases at SQeZ, kind: spend, match: [SQEZ]}
+
+Cash & P2P:
+  - {category: Cash withdrawals, kind: spend, match: [ATM WITHDRAWAL, CUSTOMER WITHDRAWAL]}
+  - {category: Checks (unidentified), kind: spend, trntype: CHECK}
+  - {category: Checks (unidentified), kind: spend, match: ["^CHECK$"]}
+  - {category: Venmo / P2P sent, kind: spend, match: [VENMO, ZELLE, "PAYPAL \\*"]}
+  - {category: Transfers out (unidentified destination), kind: spend, match: ["MOBILE BANKING TRANSFER WITHDRAW"]}
+
+Living:
+  - category: Groceries
+    kind: spend
+    match: [HY-VEE, WM SUPERCEN, WAL-MART, WALMART, WOODS MARKET, ALDI, "SAMS ?CLUB", COSTCO, SUN AND BLOOM]
+  - category: Dining out
+    kind: spend
+    match: [MCDONALD, DOMINO, JIMMY JOHN, CULVER, OUTBACK, CHILI, TACO BELL, PANERA, "ANGEL'S MEX", SERGIOS,
+            WHITTLES, DOMENICO, STARBUCKS, SONIC, CHICK-FIL, WENDY, BURGER, PIZZA, SUBWAY, DAIRY QUEEN,
+            RESTAURAN, GRILL, CAFE, COFFEE, BARISTA, "TST\\*", DOORDASH, UBER EATS, STEAK N SHA, APPLEBEE,
+            BUFFALO WILD, TABLE 33, "SMOKE ?HOUSE", "SERGIO'S"]
+  - category: Fuel & convenience
+    kind: spend
+    match: [CASEYS, MURPHY, "QT ", QUIKTRIP, SHELL, PHILLIPS 66, CONOCO, EXXON, MAPCO, BREAK TIME, CONVENIENCE,
+            SIGNAL FOOD, EAGLES LAND]
+  - category: Camper (storage, RV costs)
+    kind: spend
+    match: [STORELOCAL, Runabout Stor, RVSHARE, "\\bRV\\b"]
+  - {category: Personal care, kind: spend, match: [HAIR, NAILS, SALON, BARBER]}
+  - {category: Gym & massage, kind: spend, match: [GYM, OM CENTER, FLEET FEET, MASSAGE]}
+  - category: Medical
+    kind: spend
+    match: [DENT, RADIOLOGY, EYECARE, LAKE REGIONAL, NUESYNERGY, PHARM, CVS, WALGREEN, CLINIC, MEDICAL]
+  - {category: Kids activities & school, kind: spend, match: [DANCE, MORGAN MUSIC, KAETLYN, SCHOOL OF THE OSAGE, SUPERSPLASH]}
+  - category: Travel
+    kind: spend
+    match: [AIRBNB, HAMPTON INN, HOMEWOOD, GREAT WOLF, ENTERPRISE RENT, HOTEL, "INN ", GETAWAY, AIRLINE, SOUTHWES,
+            EMBASSY SUITES, LAKE ESCAPE, RESORT, STATE PARK, TROLLEY]
+  - category: Subscriptions & software
+    kind: spend
+    match: [AUTODESK, MICROSOFT, AMAZON WEB, PRIME VIDEO, NETFLIX, SPOTIFY, "APPLE\\.COM", GOOGLE, HULU, DISNEY,
+            OPENAI, ANTHROPIC, "CLAUDE\\.AI", GITHUB, YOUTUBE, AMAZON KIDS, PARAMOUNT, PEACOCK]
+  - {category: Vehicles, kind: spend, match: [DMV, AUTO AND TIRE, ETRAILER, "O'REILLY", AUTOZONE, CAR WASH, TIRE, WASH SHOP, OIL CHANGE, ROCK AUTO]}
+  - {category: Pets, kind: spend, match: [ANIMAL HOSP, PETSMART, PETCO]}
+  - {category: Gifts & donations, kind: spend, match: ["GIV\\*", CHURCH, DONAT]}
+  - {category: "Wix (Dogwood website?)", kind: spend, match: ["WIX\\.COM"]}
+  - category: Shopping
+    kind: spend
+    match: [TARGET, AMAZON, AMZN, SHOE CARNIVAL, HOBBY LOBBY, KOHL, OLD NAVY, "TJ ?MAXX", DOLLAR, BEST BUY,
+            SPARK PROMOTIONS, ASTRAPOUCH, RATTA]

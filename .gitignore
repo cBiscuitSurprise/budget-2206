@@ -1,0 +1,8 @@
+.cache/
+.claude/
+.data/
+checks/
+**/__pycache__/
+statements/
+reports/
+Debt view.xlsx

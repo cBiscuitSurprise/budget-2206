@@ -1,0 +1,56 @@
+# SQeZ entity (Nourished Nest LLC checking). Same format as rules.yaml.
+Transfers:
+  - {category: Chase card payment, kind: transfer, since: 2024-10-18, match: ["CHASE CREDIT CRD"]}
+  - {category: Chase card payment, kind: transfer, match: ["^AUTOMATIC PAYMENT - THANK", "^Payment Thank You"]}
+
+Financing:
+  - {category: SQeZ loan proceeds, kind: transfer, match: ["Loan Proceeds"]}
+  - {category: SQeZ loan payment, kind: spend, match: ["Regular Payment From Checking", "ONLINE TRANSFER TO", "^Miscellaneous Debit$"]}
+  - {category: "Wire to Nancy McGee (loan payoff?)", kind: spend, match: ["NANCY MCGEE"]}
+  - {category: Card interest, kind: spend, match: ["PURCHASE INTEREST CHARGE"]}
+  - {category: Chase business card payment (unitemized), kind: spend, match: ["CHASE CREDIT CRD"]}
+
+Revenue:
+  - {category: Square sales, kind: income, match: ["^Square Inc(?! PAYR)"]}
+  - {category: Card settlements — Citizens, kind: income, match: ["NET SETLMT Citizens"]}
+  - {category: Delivery apps, kind: income, match: [DOORDASH, UBER, GRUBHUB]}
+  - {category: Returned items (reversed debits), kind: income, match: ["RETURNED ITEM"]}
+  - {category: "Deposits (unidentified — cash sales or owner money?)", kind: income, match: ["^Deposit$", "DEPOSIT"]}
+
+Payroll:
+  - {category: Payroll — Square, kind: spend, match: ["Square Inc PAYR"]}
+  - {category: Payroll — Toast, kind: spend, match: ["Toast Payroll"]}
+  - {category: Payroll taxes, kind: spend, match: ["PAYROLL TAX"]}
+  - {category: Health insurance — Anthem, kind: spend, match: [ANTHEM]}
+
+Cost of goods:
+  - {category: Sysco, kind: spend, match: [Sysco]}
+  - {category: Performance Foodservice, kind: spend, match: [PERFORMANCEMIDD]}
+  - {category: Groceries — Hy-Vee, kind: spend, match: [HY-VEE, HYVEE]}
+  - {category: JuicedRite, kind: spend, match: ["Juiced ?Rit"]}
+  - {category: Other food & supplies, kind: spend, match: [WAL-MART, WALMART, "WM SUPERCEN", SAMS, COSTCO, ALDI, WESTROCK, WEBSTAURANT, AMAZON, AMZN]}
+
+Taxes:
+  - {category: IRS, kind: spend, match: ["IRS USATAXPYMT", "IRS "]}
+  - {category: Missouri sales tax, kind: spend, match: ["MO REV TAX", "MO DEPT REV"]}
+
+Operating:
+  - {category: Insurance — Shelter, kind: spend, match: [SHELTER]}
+  - {category: Utilities, kind: spend, match: [AMEREN, OZARK WASTE, SPECTRUM, PWSD, "LAKE OZARK UTIL", "SUMMIT UTILI"]}
+  - {category: "Wire to Stratex (?)", kind: spend, match: ["STRATEX"]}
+  - {category: Missouri payroll withholding, kind: spend, match: ["MO DIR EMP"]}
+  - {category: Rent & buildout, kind: spend, match: ["Backyard & B", "STORE CRAFT", "FSP FOUNDATI", "Captiva Cont", "OSAGE BEACH RV"]}
+  - {category: Equipment & repairs, kind: spend, match: ["I2G Advanced HVAC", GOODNATURE, SHARKNINJA, "ZUMEX", MENARDS, HOME DEPOT, LOWES]}
+  - {category: Signs & marketing, kind: spend, match: ["RAPID SIGNS", "SPARK PRO", "LINDYSPRINGLAKE", "WRIGHT PRINTING", VISTAPRINT, "UPS STORE"]}
+  - {category: Licenses & permits, kind: spend, match: ["CITY OF OSAGE BEACH", "AAAFOODHANDLER", "MUNICIPAL ONLINE"]}
+  - {category: Refunds & statement credits, kind: income, match: ["STATEMENT CREDIT"]}
+  - {category: Trash & pest, kind: spend, match: ["GFL - ENV", "ALL AMERICAN PES"]}
+  - {category: Phone, kind: spend, match: ["AT&T"]}
+  - {category: Cash withdrawals, kind: spend, match: ["CASH WITHDRAWAL"]}
+  - {category: Chamber dues, kind: spend, match: ["LAKE AREA CHAMBE"]}
+  - {category: Software & POS, kind: spend, match: [INTUIT, QUICKBOOKS, TOAST, "SQ \\*", SQUARE, GOOGLE, MICROSOFT, ADOBE, CANVA]}
+  - {category: Bank fees & overdrafts, kind: spend, match: ["OVERDRAFT", "NSF", "SERVICE CHARGE", "ACH PER (ITEM|FILE)", "ACH .*FEES?", "RETURN ITEM FEE"]}
+
+Unidentified:
+  - {category: Checks (unidentified), kind: spend, match: ["^Check$"]}
+  - {category: Checks (unidentified), kind: spend, trntype: CHECK}

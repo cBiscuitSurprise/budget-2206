@@ -1,0 +1,46 @@
+# Resolved per month: default, then months[YYYY-MM] per category, then plus known entries dated in that month.
+default:
+  Casey paycheck: 16000
+  Amanda paycheck: 3452
+  High Ridge rent: 1500
+  Windjammer mortgage: 0
+  High Ridge mortgage: 2497.00
+  Windjammer utilities: 365
+  High Ridge utilities: 400
+  HOA & home services: 0
+  Truck payment: 872.81
+  Camper payments: 771.90
+  Fuel: 400
+  Groceries: 1400
+  Restaurants: 500
+  Phone & subscriptions: 350
+  Shopping & clothing: 250
+  Life insurance: 530.97
+  Gym & massage: 86.58
+  Medical: 450.99
+  Kids activities: 200
+  Card interest & fees: 1000
+  Garden shed: 257.50
+  Card payments: 173
+  Tax set-aside: 3750
+  Owner contributions: 1892  # SQeZ pays Anthem 1356 + Shelter 536
+  Fun money: 250
+months:
+  2026-09:
+    Amanda paycheck: 0
+    Windjammer mortgage: 2469.06
+  2026-10:
+    Amanda paycheck: 2589
+    Windjammer mortgage: 2469.06
+  2026-11:
+    Windjammer mortgage: 2469.06
+
+known:
+  - {date: 2026-01-20, category: Home & auto insurance, amount: 512.00, note: AmFam auto}
+  - {date: 2026-01-20, category: Home & auto insurance, amount: 508.00, note: AmFam umbrella}
+  - {date: 2026-01-20, category: Camper payments, amount: 1583.40, note: AmFam camper insurance}
+  - {date: 2026-07-20, category: Home & auto insurance, amount: 484.10, note: AmFam auto}
+  - {date: 2027-01-20, category: Home & auto insurance, amount: 512.00, note: AmFam auto (est)}
+  - {date: 2027-01-20, category: Home & auto insurance, amount: 508.00, note: AmFam umbrella (est)}
+  - {date: 2027-01-20, category: Camper payments, amount: 1583.40, note: AmFam camper insurance (est)}
+  - {date: 2027-07-20, category: Home & auto insurance, amount: 484.10, note: AmFam auto (est)}
