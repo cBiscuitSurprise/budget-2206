@@ -72,10 +72,15 @@ check images (downloaded by hand)      ─┘          │
 - Add any cuts and extra income entered on the page.
 
 **Simulation (`simulate()`):**
+- Lives in `src/budget/templates/engine.js`, spliced into the report at build. Tests: `node --test tests/js`.
+- **Snowball / mo** = minimum + cash left after all minimums in the first month the debt is the focus. Months with a shortfall, a sale lump or carried cash are skipped.
 - Runs month by month.
 - Interest accrues first, then minimums are paid, then everything left goes to the target debt.
 - Card minimum: interest + 1% of the balance, at least $35. Loan minimum: the average payment over the last 12 months.
 - If the budget is short of the minimums, the gap goes on a new card at `apr.card`. This makes a plan that can't work look like one.
+
+**Start before the sale closes:**
+- `plan.start` can precede `sale.close`. Months before the close subtract `plan.pre_sale` categories (the Valon mortgage) from the budget, and the sale proceeds land in the close month.
 
 **Ordering:**
 - Main debts are paid by snowball, avalanche or a manual order (`plan.order`). The page shows which order costs the least.

@@ -66,8 +66,8 @@ nav.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-top:14px;border-bottom:1px s
 nav.tabs a{padding:7px 12px;color:var(--ink2);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13px}
 nav.tabs a:hover{color:var(--ink)}
 nav.tabs a[aria-current]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
-#po-strat,#po-scen{margin:0 0 12px}
-#po-strat a small,#po-scen a small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+#po-strat,#po-scen,#po-tax{margin:0 0 12px}
+#po-strat a small,#po-scen a small,#po-tax a small{display:block;font-weight:400;color:var(--muted);font-size:11px}
 .bal tr.ent th{padding-top:14px;font-size:13px;border-bottom:1px solid var(--muted)}
 .bal tr.sub td{font-weight:600}
 .neg{color:var(--ink)}
@@ -129,11 +129,13 @@ tr.hl td{font-weight:600;background:var(--hover)}
     <section class="card">
       <div class="card-head"><div><h2>Assumed budget</h2><div class="sub" id="po-ab-sub"></div></div><div style="text-align:right;white-space:nowrap"><div class="sub">Available for debt / mo</div><b id="po-ab-avail" style="font-size:1.4em"></b></div></div>
       <div class="scroll" id="po-ab"></div>
+      <details id="po-known"><summary></summary><div class="scroll" id="po-known-body"></div></details>
     </section>
     <section class="card" id="po-scard">
-      <div class="card-head"><div><h2>Scenario</h2><div class="sub">Pick one. Defaults come from the <code>plan:</code> section of <code>assets.yaml</code>; changes are kept for this browser tab only.</div></div><button type="button" id="po-reset">Reset</button><button type="button" id="po-commit" title="Freeze this scenario as the plan to track against">Commit plan</button></div>
+      <div class="card-head"><div><h2>Scenario</h2><div class="sub">Pick one. Defaults come from the <code>plan:</code> section of <code>assets.yaml</code>; changes are kept for this browser tab only.</div></div><button type="button" id="po-reset">Reset</button><input id="po-note" placeholder="Why commit now? (plan history)" size="28"><button type="button" id="po-commit" title="Freeze this scenario as the plan to track against">Commit plan</button><span id="po-status" class="sub"></span></div>
       <nav class="tabs" id="po-scen" aria-label="Scenario" style="margin:0 0 12px"></nav>
       <div class="ctl" id="po-pod"></div>
+      <nav class="tabs" id="po-tax" aria-label="2026 tax" style="margin:0 0 12px" hidden></nav>
       <details><summary>Rates &amp; shared assumptions <span class="muted">· APRs apply only to debts with no <code>rate</code> set</span></summary><div class="ctl" id="po-rates" style="margin-top:8px"></div></details>
     </section>
     <section class="card">
@@ -566,58 +568,8 @@ function loans(){
 
 function bindTables(){document.querySelectorAll('[data-tbl]').forEach(b=>b.onclick=()=>{const t=$('#'+b.dataset.tbl+'-tbl'),c=$('#'+b.dataset.tbl);const show=t.hidden;t.hidden=!show;c.hidden=show;b.textContent=show?'Chart':'Table'})}
 
-const addM=(ym,n)=>{let[y,m]=ym.split('-').map(Number);m+=n-1;y+=Math.floor(m/12);m=(m%12+12)%12+1;return`${y}-${String(m).padStart(2,'0')}`};
-const amort=(b,apr,n)=>{const r=apr/1200;return r?b*r/(1-(1+r)**-n):b/n};
 const span=n=>n==null?'never':`${Math.floor(n/12)?Math.floor(n/12)+' yr ':''}${n%12?n%12+' mo':''}`.trim();
-
-function simulate(debts,budget,strategy,cardApr,lump=0,pri=true){
-  if(pri&&debts.some(d=>d.sellAt==='gap')){
-    const cut=Math.min(...debts.filter(d=>d.sellAt==='gap').map(d=>d.sellBy??0));
-    const pre=cut?simulate(debts,budget,strategy,cardApr,lump,false).ds:[],early=new Set(pre.filter(d=>d.done!=null&&d.done<=cut).map(d=>d.id));
-    debts=debts.map(d=>({...d,pri:d.sellAt==='gap'?1:early.has(d.id)?0:2}));
-  }
-  const ds=debts.map(d=>({...d,bal:d.start>1?0:d.bal,interest:0,done:null,hist:[],paid:[],pm:0}));
-  const pending=mo=>ds.some(d=>d.start>mo);
-  const main=()=>sum(ds,d=>d.follow?0:Math.max(0,d.bal)),fam=()=>sum(ds,d=>d.follow?Math.max(0,d.bal):0);
-  const total=[main()],ftotal=[fam()];let interest=0,short=0,borrowed=null,mo=0,months=null,fmonths=null,amonths=null,carry=0;
-  const room=d=>d.bal-(d.sellAt!=null?d.value||0:0);
-  while((ds.some(d=>d.bal>.005)||pending(mo))&&mo<600){
-    mo++;
-    for(const d of ds)d.pm=0;
-    for(const d of ds)if(d.start===mo)d.bal=debts.find(x=>x.id===d.id).bal;
-    for(const d of ds)if(d.sellAt!=null&&d.dep&&mo>1)d.value*=(1-d.dep/100)**(1/12);
-    const mins=[];
-    for(const d of ds){if(d.bal<=.005)continue;const i=d.bal*d.apr/1200;d.bal+=i;d.interest+=i;interest+=i;mins.push([d,Math.min(d.bal,d.card?Math.max(35,i+.01*(d.bal-i)):d.pay||0)])}
-    let cash=budget+carry+(typeof lump==='number'?(mo===1?lump:0):lump[mo]||0);carry=0;const need=sum(mins,x=>x[1]);
-    if(need>cash){
-      short++;
-      if(!borrowed){borrowed={id:'borrowed',name:'New card debt (budget short of minimums)',bal:0,apr:cardApr,card:true,interest:0,done:null};ds.push(borrowed)}
-      borrowed.bal+=need-cash;cash=need;
-    }
-    for(const[d,m]of mins){d.bal-=m;d.pm+=m;cash-=m}
-    const by=typeof strategy==='function'?strategy:strategy==='avalanche'?(a,b)=>b.apr-a.apr||room(a)-room(b):(a,b)=>room(a)-room(b);
-    const tier=d=>d.last?1e3:d.follow||0,order=(a,b)=>tier(a)-tier(b)||(a.pri??2)-(b.pri??2)||by(a,b);
-    const top=ds.filter(d=>room(d)>.005).sort(order)[0];
-    if(top&&top.snow==null){const own=mins.find(x=>x[0]===top)?.[1]||0;top.snow=Math.max(own,budget-need+own)}
-    while(cash>.005){const t=ds.filter(d=>room(d)>.005).sort(order)[0];if(!t)break;const p=Math.min(cash,room(t));t.bal-=p;t.pm+=p;cash-=p}
-    for(const d of ds){
-      if(d.sellAt==null||d.bal<=.005||!(d.sellAt==='gap'?room(d)<=.005||mo>=(d.sellBy||1e9):mo>=d.sellAt))continue;
-      d.lost=(debts.find(x=>x.id===d.id).value||0)-d.value;
-      carry+=Math.max(0,d.value-d.bal);d.bal=Math.max(0,d.bal-d.value);d.sold=mo;d.sellAt=null;d.value=0;
-      if(d.bal>.005){d.apr=d.gapApr;d.pay=amort(d.bal,d.gapApr,36)}
-    }
-    for(const d of ds)if(d.bal<=.005&&d.done==null&&!(d.start>mo)){d.bal=0;d.done=mo}
-    for(const d of ds){d.hist.push(d.bal);d.paid.push(d.pm)}
-    total.push(main());ftotal.push(fam());
-    if(months==null&&!ds.some(d=>!d.follow&&!d.last&&(d.bal>.005||d.start>mo)))months=mo;
-    if(fmonths==null&&months!=null&&!ds.some(d=>d.follow&&d.bal>.005))fmonths=mo;
-    if(amonths==null&&!ds.some(d=>!d.follow&&(d.bal>.005||d.start>mo)))amonths=mo;
-  }
-  if(months==null&&!ds.some(d=>!d.follow&&!d.last&&d.bal>.005))months=0;
-  if(fmonths==null&&months!=null&&!ds.some(d=>d.follow&&d.bal>.005))fmonths=months;
-  if(amonths==null&&!ds.some(d=>!d.follow&&d.bal>.005))amonths=0;
-  return{ds,total:amonths==null?total:total.slice(0,amonths+1),ftotal,interest,lost:sum(ds,d=>d.lost||0),short,months,fmonths};
-}
+/*__ENGINE__*/
 
 function payoff(){
   const P=D.netWorth.plan;
@@ -643,13 +595,23 @@ function payoff(){
 
   const defaults=()=>({extra:0,strategy:'best',order:[...(P.order||[])],sell:{},cut:{},apr:{...P.apr},adj:(P.adjustments||[]).map(a=>a.monthly),inc:(P.income||[]).map(a=>a.monthly),saleCash:Math.round(saleCash),
     liq:(P.liquidate||[]).map(x=>({on:false,date:x.date||P.start,amount:x.amount||0})),
-    scen:'current',pod:{amount:P.pod?.amount??150000,date:P.pod?.date??P.start,apr:P.pod?.rate??8.5,years:P.pod?.years??20},cutOn:true,loans:[]});
-  let S={...defaults(),...(store.get('payoff')||{})};S.apr={...P.apr,...S.apr};S.cut=S.cut||{};S.pod={...defaults().pod,...S.pod};S.loans=S.loans||[];
+    scen:'current',tax:'now',pod:{amount:P.pod?.amount??150000,date:P.pod?.date??P.start,apr:P.pod?.rate??8.5,years:P.pod?.years??20},cutOn:true,loans:[],once:[],sav:{on:false,apy:3,ladder:[{trigger:'',pct:50}],income:{trigger:'',pct:5},target:0}});
+  let S={...defaults(),...(store.get('payoff')||{})};S.apr={...P.apr,...S.apr};S.cut=S.cut||{};S.pod={...defaults().pod,...S.pod};S.loans=S.loans||[];S.sav={...defaults().sav,...S.sav};
   const podOn=()=>S.scen==='pod'&&S.pod.amount>0;
   S.liq=defaults().liq.map((d,i)=>({...d,...(S.liq||[])[i]}));
   const moIdx=ym=>{const[a,b]=P.start.split('-').map(Number),[y,m]=ym.split('-').map(Number);return Math.max(1,(y-a)*12+m-b+1)};
+  const saleIdx=sale?.sale.close?moIdx(sale.sale.close.slice(0,7)):1,preSale=sum(P.pre_sale||[],c=>lines.find(l=>l.c===c)?.v||0);
   const liqOn=()=>S.liq.map((l,i)=>({...l,i,name:P.liquidate[i].name})).filter(l=>l.on&&l.amount>0);
   const loansOn=()=>S.loans.map((l,i)=>({...l,i})).filter(l=>l.on&&l.amount>0);
+  const onceOn=()=>S.once.map((o,i)=>({...o,i})).filter(o=>o.on&&o.amount);
+  const savCfg=()=>{
+    if(!S.sav.on)return null;
+    const ladder=S.sav.ladder.filter(x=>x.trigger&&x.pct>0).map(x=>({trigger:x.trigger,pct:x.pct})),i=S.sav.income;
+    const income=i.trigger&&i.pct>0?{trigger:i.trigger,pct:i.pct,amount:Math.max(0,sum(ab().rows.filter(r=>r.g==='Income'),r=>r.v))}:null;
+    return ladder.length||income?{apy:S.sav.apy,target:S.sav.target||0,ladder,income}:null;
+  };
+  const trigOpts=cur=>`<option value="">pick a debt…</option>${[...modeled,...family].map(d=>`<option value="${d.id}"${cur===d.id?' selected':''}>${esc(short(d.name))}</option>`).join('')}`;
+  const newOnce=()=>({on:true,name:`One-time ${S.once.length+1}`,date:P.start,amount:1000});
   const newLoan=()=>({on:true,name:`Loan ${S.loans.length+1}`,amount:10000,date:P.start,apr:S.apr.other,years:5,use:'debt'});
   const vehicles=modeled.filter(d=>d.kind==='vehicle'&&d.value!=null&&d.owed>d.value);
   let strat0='snowball',SNAP=null;const optMsg={};
@@ -701,7 +663,20 @@ function payoff(){
         over <input type="number" step="1" min="1" style="width:56px" data-ln="${i}" data-f="years" value="${l.years}" aria-label="Term in years"> yr,
         <select data-ln="${i}" data-f="use" aria-label="Use of proceeds">${opts([['debt','proceeds pay debt'],['spend','proceeds spent']],l.use)}</select>
         <button type="button" data-rm="${i}" aria-label="Remove ${esc(l.name)}">✕</button>`)).join('')}
-      <tr><td colspan="3"><button type="button" id="po-addloan">+ New loan</button></td></tr>
+      ${S.once.map((o,i)=>row('once:'+i,chk(`data-on="${i}" data-f="on"`,o.on,`<input type="text" style="width:140px" data-on="${i}" data-f="name" value="${esc(o.name)}" aria-label="One-time payment name">`),
+        `<input type="number" step="100" style="width:100px" data-on="${i}" data-f="amount" value="${o.amount}" aria-label="Amount paid"> paid in
+        <input type="month" data-on="${i}" data-f="date" value="${o.date}" min="${P.start}" aria-label="Month">
+        <button type="button" data-rmo="${i}" aria-label="Remove ${esc(o.name)}">✕</button>`)).join('')}
+      ${row('sav',chk('data-sv="on"',S.sav.on,'Savings ladder'),`<div>
+        ${S.sav.ladder.map((x,i)=>`<div>after <select data-sv="trigger" data-i="${i}" aria-label="Trigger debt">${trigOpts(x.trigger)}</select> is paid off, divert
+          <input type="number" step="5" min="0" max="100" style="width:64px" data-sv="pct" data-i="${i}" value="${x.pct}" aria-label="Percent of snowball">% of the snowball
+          ${S.sav.ladder.length>1?`<button type="button" data-svrm="${i}" aria-label="Remove step">✕</button>`:''}</div>`).join('')}
+        <div><button type="button" id="po-addstep">+ Step</button></div>
+        <div>after <select data-sv="itrigger" aria-label="Trigger debt">${trigOpts(S.sav.income.trigger)}</select> is paid off, save
+          <input type="number" step="1" min="0" max="100" style="width:64px" data-sv="ipct" value="${S.sav.income.pct}" aria-label="Percent of income">% of income (${money(Math.max(0,sum(ab().rows.filter(r=>r.g==='Income'),r=>r.v)))}/mo)</div>
+        <div>Target <input type="number" step="1000" min="0" style="width:100px" data-sv="target" value="${S.sav.target||''}" placeholder="none" aria-label="Savings target"> (once reached, deposits go back to debt; the balance keeps earning)</div>
+        <div>High-yield savings APY <input type="number" step="0.25" min="0" style="width:64px" data-sv="apy" value="${S.sav.apy}" aria-label="Savings APY %">%</div></div>`)}
+      <tr><td colspan="3"><button type="button" id="po-addloan">+ New loan</button> <button type="button" id="po-addonce">+ One-time payment</button></td></tr>
       <tr class="tot"><td>All layers together</td><td></td><td data-hx="all"></td></tr></tbody></table>`;
   };
   const hypDraw=(fx,force)=>{
@@ -715,12 +690,17 @@ function payoff(){
     else if(t.dataset.liq){const l=S.liq[+t.dataset.liq];l[f]=f==='on'?t.checked:f==='date'?(t.value||P.start):Math.max(0,num)}
     else if(t.dataset.sell){S.sell[t.dataset.sell]={...sellOf(t.dataset.sell),[f]:t.value};rebuild=f==='mode'}
     else if(t.dataset.ln){const l=S.loans[+t.dataset.ln];l[f]=f==='on'?t.checked:f==='name'||f==='use'?t.value:f==='date'?(t.value||P.start):Math.max(0,num)}
+    else if(t.dataset.sv){const k=t.dataset.sv,v=S.sav;
+      if(k==='on')v.on=t.checked;else if(k==='apy')v.apy=Math.max(0,num);else if(k==='target')v.target=Math.max(0,num);
+      else if(k==='trigger')v.ladder[+t.dataset.i].trigger=t.value;else if(k==='pct')v.ladder[+t.dataset.i].pct=Math.min(100,Math.max(0,num));
+      else if(k==='itrigger')v.income.trigger=t.value;else if(k==='ipct')v.income.pct=Math.min(100,Math.max(0,num))}
+    else if(t.dataset.on){const o=S.once[+t.dataset.on];o[f]=f==='on'?t.checked:f==='name'?t.value:f==='date'?(t.value||P.start):num}
     else return;
     store.set('payoff',S);render(rebuild);
     if(rebuild)$(`#po-hyp [data-sell="${t.dataset.sell}"][data-f="mode"]`)?.focus();
   };
   const optSell=(id,goal)=>{
-    const s=sellOf(id),run1=sv=>{S.sell[id]=sv;const b=build();return simulate(b.debts,b.budget,strat0,S.apr.card,b.L)};
+    const s=sellOf(id),run1=sv=>{S.sell[id]=sv;const b=build();return simulate(b.debts,b.budget,strat0,S.apr.card,b.L,true,b.sav)};
     const cost=r=>r.interest+r.lost,score=r=>goal==='date'?[r.months??1e9,cost(r)]:[cost(r),r.months??1e9];
     const better=(a,b)=>{const x=score(a),y=score(b);return x[0]<y[0]-.5||Math.abs(x[0]-y[0])<=.5&&x[1]<y[1]-.5};
     const now=run1({mode:'now'}),open=run1({...s,mode:'gap',date:''});
@@ -735,10 +715,16 @@ function payoff(){
     const o=e.target.closest('[data-opt]');
     if(o){optSell(o.dataset.opt,o.dataset.goal);store.set('payoff',S);render(true);return}
     if(e.target.id==='po-addloan'){S.loans.push(newLoan());store.set('payoff',S);render(true);$(`#po-hyp [data-ln="${S.loans.length-1}"][data-f="name"]`)?.focus();return}
+    if(e.target.id==='po-addonce'){S.once.push(newOnce());store.set('payoff',S);render(true);$(`#po-hyp [data-on="${S.once.length-1}"][data-f="name"]`)?.focus();return}
+    if(e.target.id==='po-addstep'){S.sav.ladder.push({trigger:'',pct:50});store.set('payoff',S);render(true);return}
+    const rs=e.target.closest('[data-svrm]');
+    if(rs){S.sav.ladder.splice(+rs.dataset.svrm,1);store.set('payoff',S);render(true);return}
+    const ro=e.target.closest('[data-rmo]');
+    if(ro){S.once.splice(+ro.dataset.rmo,1);store.set('payoff',S);render(true);$('#po-addonce')?.focus();return}
     const rm=e.target.closest('[data-rm]');if(!rm)return;
     S.loans.splice(+rm.dataset.rm,1);store.set('payoff',S);render(true);$('#po-addloan')?.focus();
   };
-  $('#po-clear').onclick=()=>{S.cutOn=false;S.extra=0;S.liq.forEach(l=>l.on=false);S.sell={};S.loans.forEach(l=>l.on=false);store.set('payoff',S);render(true)};
+  $('#po-clear').onclick=()=>{S.cutOn=false;S.extra=0;S.liq.forEach(l=>l.on=false);S.sell={};S.loans.forEach(l=>l.on=false);S.once.forEach(o=>o.on=false);S.sav.on=false;store.set('payoff',S);render(true)};
   $('#po-order').onclick=e=>{
     const b=e.target.closest('[data-mv]');if(!b)return;
     const i=S.order.indexOf(b.dataset.mv),j=i+ +b.dataset.dir;if(i<0||j<0||j>=S.order.length)return;
@@ -753,29 +739,35 @@ function payoff(){
     const a=e.target.closest('[data-sc]');if(!a)return;e.preventDefault();
     S.scen=a.dataset.sc;store.set('payoff',S);scenDraw();render();$(`#po-scen [data-sc="${S.scen}"]`)?.focus();
   };
+  $('#po-tax').onclick=e=>{
+    const a=e.target.closest('[data-tx]');if(!a)return;e.preventDefault();
+    S.tax=a.dataset.tx;store.set('payoff',S);render();$(`#po-tax [data-tx="${S.tax}"]`)?.focus();
+  };
   $('#po-commit').onclick=async()=>{
     if(!SNAP)return;const{cur,key,budget,debts,hl}=SNAP,r2=x=>Math.round(x*100)/100;
-    const note=prompt('Why commit now? (shown in plan history)',hl||'');if(note===null)return;
+    const note=$('#po-note').value||hl||'',say=t=>$('#po-status').textContent=t;
     const snap={committed:new Date().toISOString().slice(0,10),note,start:P.start,scenario:S.scen,strategy:key,order:S.order,apr:S.apr,budget:r2(budget),
-      months:cur.months,fmonths:cur.fmonths,interest:r2(cur.interest),
+      months:cur.months,fmonths:cur.fmonths,interest:r2(cur.interest),sav:SNAP.sav?{apy:SNAP.sav.apy,dep:cur.sav.dep.map(r2)}:null,
       debts:cur.ds.filter(d=>d.id!=='borrowed').map(d=>{const o=debts.find(x=>x.id===d.id)||d;return{id:d.id,name:o.name,follow:!!d.follow,last:!!d.last,start:o.start||1,bal0:r2(o.bal),apr:o.apr,done:d.done,pay:d.paid.map(r2),bal:d.hist.map(r2)}})};
     try{const r=await fetch('/plan',{method:'POST',headers:{'X-Budget':'1','Content-Type':'application/json'},body:JSON.stringify(snap)});
-      if(!r.ok)throw 0;alert('Saved '+await r.text())}
-    catch{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snap)],{type:'application/json'}));a.download=snap.committed+'.json';a.click();alert('Not served by `budget serve`: downloaded. Move it to plans/.')}
+      if(!r.ok)throw 0;say('Saved '+await r.text())}
+    catch{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snap)],{type:'application/json'}));a.download=snap.committed+'.json';a.click();say('Not served by `budget serve`: downloaded. Move it to plans/.')}
   };
   $('#po-reset').onclick=()=>{const sc=S.scen;S={...defaults(),scen:sc};store.set('payoff',null);scenDraw();render(true)};
 
+  const taxCfg=P.irs?.current,taxAmt=()=>-sum(planLines.filter(p=>p.cat==='Tax set-aside'),p=>p.get()),taxPaid=()=>taxAmt()*(taxCfg?.pay_months||[]).length;
   const podDebt=()=>({id:'pod',name:'Granny pod loan',bal:S.pod.amount,apr:S.pod.apr,assumed:true,card:false,
     pay:amort(S.pod.amount,S.pod.apr,Math.max(1,S.pod.years)*12),est:true,last:1,start:moIdx(S.pod.date)});
   const debtList=off=>{
     const out=[];
     for(const d of modeled){
       const assumed=d.rate==null,apr=d.rate??(d.card?S.apr.card:d.kind==='vehicle'?S.apr.vehicle:irs.has(d.id)?S.apr.irs:S.apr.other);
-      if(irs.has(d.id)){out.push({id:d.id,name:short(d.name),bal:d.owed,apr,assumed,card:false,pay:amort(d.owed,apr,P.irs.months),est:d.estimate});continue}
+      if(irs.has(d.id)){const c=P.irs.current?.debt===d.id,now=c&&S.tax==='now',bal=now?Math.max(0,d.owed-taxPaid()):d.owed;
+        out.push({id:d.id,name:short(d.name),bal,apr,assumed,card:false,pay:amort(bal,apr,P.irs.months),est:d.estimate,...(c?{reserve:true,start:moIdx(now?addM(P.irs.current.pay_months.at(-1),1):P.irs.current.filing)}:{})});continue}
       const sv=d.kind==='vehicle'&&d.value!=null&&d.owed>d.value&&!off.has('sell:'+d.id)?sellOf(d.id):{mode:'keep'};
       if(sv.mode==='gap'||sv.mode==='month'&&sv.date){out.push({id:d.id,name:short(d.name),bal:d.owed,apr,assumed,card:false,pay:d.payment?.monthly??0,est:d.estimate,
         value:d.value,dep:S.apr.dep??12,gapApr:S.apr.other,sellAt:sv.mode==='gap'?'gap':moIdx(sv.date),sellBy:sv.mode==='gap'&&sv.date?moIdx(sv.date):null});continue}
-      if(sv.mode==='now'){const gap=d.owed-d.value;out.push({id:d.id,name:`${short(d.name)}: gap after selling`,bal:gap,apr:S.apr.other,assumed:true,card:false,pay:amort(gap,S.apr.other,36),est:true});continue}
+      if(sv.mode==='now'){const gap=d.owed-d.value;out.push({id:d.id,name:`${short(d.name)}: gap after selling`,bal:gap,apr:S.apr.other,assumed:true,card:false,pay:amort(gap,S.apr.other,36),est:true,pri:3,gone:true});continue}
       out.push({id:d.id,name:short(d.name),bal:d.owed,apr,assumed,card:d.card,pay:d.card?null:d.payment?.monthly??0,est:d.estimate});
     }
     if(S.saleCash<0)out.push({id:'sale',name:'Cash due at Windjammer closing',bal:-S.saleCash,apr:S.apr.card,assumed:true,card:true,est:true});
@@ -798,18 +790,25 @@ function payoff(){
       const canCut=!noCut.has(b.g)&&base<0,cut=canCut&&cutOn?S.cut[b.n]||0:0;
       return{...b,pl,t,base,v:base+cut,avg:ks.length?sum(ks,l=>l.v):null,from,canCut,cut,show:pl.length||ks.length||!src.length&&t};
     }).filter(r=>r.show);
-    const avail=sum(rows,r=>r.v)+sum(loose,l=>l.v)+sum(loosePlan,p=>p.get());
-    return{rows,avail,cuts:sum(rows,r=>r.cut)};
+    const pre=sum(rows.filter(r=>(P.until_sale||[]).includes(r.n)),r=>r.v),avail=sum(rows,r=>r.v)-pre+sum(loose,l=>l.v)+sum(loosePlan,p=>p.get());
+    return{rows,avail,pre,cuts:sum(rows,r=>r.cut)};
   };
   const ALL={has:()=>true},NONE={has:()=>false},only=k=>({has:x=>x===k});
   const layers=()=>[...(S.cutOn&&ab(true).cuts?['cuts']:[]),...(S.extra>0?['extra']:[]),...liqOn().map(l=>'liq:'+l.i),
-    ...vehicles.filter(v=>{const s=sellOf(v.id);return s.mode!=='keep'&&!(s.mode==='month'&&!s.date)}).map(v=>'sell:'+v.id),...loansOn().map(l=>'loan:'+l.i)];
-  const layerName=k=>{const[t,i]=k.split(':');return t==='cuts'?'cuts':t==='extra'?`+${money(S.extra)}/mo`:t==='liq'?P.liquidate[i].name:t==='loan'?S.loans[i].name||'new loan':`selling ${short(byId[i].name)}`};
+    ...vehicles.filter(v=>{const s=sellOf(v.id);return s.mode!=='keep'&&!(s.mode==='month'&&!s.date)}).map(v=>'sell:'+v.id),...loansOn().map(l=>'loan:'+l.i),...onceOn().map(o=>'once:'+o.i),...(savCfg()?['sav']:[])];
+  const layerName=k=>{const[t,i]=k.split(':');return t==='cuts'?'cuts':t==='extra'?`+${money(S.extra)}/mo`:t==='liq'?P.liquidate[i].name:t==='loan'?S.loans[i].name||'new loan':t==='once'?S.once[i].name||'one-time':t==='sav'?'savings ladder':`selling ${short(byId[i].name)}`};
   const build=(off=NONE,extra)=>{
-    const L={1:Math.max(0,S.saleCash)},add=(ym,v)=>{const i=moIdx(ym);L[i]=(L[i]||0)+v};
+    const L={scaled:[]},add=(ym,v)=>{const i=moIdx(ym);L[i]=(L[i]||0)+v};
+    const preCost=preSale+ab(S.cutOn&&!off.has('cuts')).pre;
+    for(let m=1;m<saleIdx;m++)L[m]=preCost;
+    L[saleIdx]=(L[saleIdx]||0)+Math.max(0,S.saleCash);
+    if(taxCfg&&S.tax==='defer')for(const m of taxCfg.pay_months)add(m,taxAmt());
+    for(const o of P.one_time||[])add(o.month,o.amount);
     for(const l of liqOn())if(!off.has('liq:'+l.i))add(l.date,l.amount);
     for(const l of loansOn())if(l.use==='debt'&&!off.has('loan:'+l.i))add(l.date,l.amount);
-    return{debts:debtList(off),budget:ab(S.cutOn&&!off.has('cuts')).avail+(extra??(off.has('extra')?0:S.extra)),L};
+    for(const k of knownOcc()){const ids=(P.scale_groups||{})[k.scale];if(ids)L.scaled.push({mo:moIdx(k.month),amount:-k.amount,ids});else add(k.month,-k.amount)}
+    for(const o of onceOn())if(!off.has('once:'+o.i))add(o.date,-o.amount);
+    return{sav:off.has('sav')?null:savCfg(),debts:debtList(off),budget:ab(S.cutOn&&!off.has('cuts')).avail+(extra??(off.has('extra')?0:S.extra)),L};
   };
   const closed=new Set(store.get('payoff-closed')||[]);
   const sgn=v=>Math.abs(v)<.5?'$0':`${v>0?'+':''}${money(v)}`;
@@ -828,12 +827,48 @@ function payoff(){
       ${lineT('Not in Actual budget: kept spending with no category in categories.yaml',loose)}
       ${lineT('Not counted: one-off, ends with the sale, or the plan makes these payments',lines.filter(l=>l.role!=='kept'))}`;
   };
+  let K=(P.known||[]).map(k=>({...k})),Kdirty=false;
+  const kMonth=k=>String(k.date).slice(0,7),kEnd=addM(P.start,120);
+  const knownOcc=()=>K.flatMap(k=>{
+    const n=+k.every||0,m0=kMonth(k),nm=`${k.category}${k.note?': '+k.note:''}`,out=[];
+    for(let i=0,m=m0;m<=kEnd&&(i===0||n>0);i++,m=addM(m0,i*n))if(m>=P.start)out.push({name:nm,month:m,amount:+k.amount||0,scale:k.scale});
+    return out;
+  });
+  const knownDraw=force=>{
+    const box=$('#po-known-body'),n=K.length,yr=sum(knownOcc().filter(o=>o.month<addM(P.start,12)),o=>o.amount);
+    $('#po-known summary').innerHTML=`Scheduled one-time payments <span class="muted">· ${n} · ${money(yr)} in the next 12 months · always applied; hypotheticals move around this</span>`;
+    if(!force&&box.contains(document.activeElement))return;
+    const cats=[...new Set([...(P.budget||[]).map(b=>b.n),...K.map(k=>k.category)])];
+    box.innerHTML=`<table class="bal"><thead><tr><th>Category</th><th>Note</th><th>Date</th><th class="num">Amount</th><th class="num" title="Repeat every N months; 0 = once">Every (mo)</th><th title="Amount shrinks as these vehicles are sold">Scales with sales</th><th></th></tr></thead><tbody>
+      ${K.map((k,i)=>`<tr><td><select data-k="${i}" data-f="category" aria-label="Category">${cats.map(c=>`<option${c===k.category?' selected':''}>${esc(c)}</option>`).join('')}</select></td>
+        <td><input type="text" style="width:170px" data-k="${i}" data-f="note" value="${esc(k.note||'')}" aria-label="Note"></td>
+        <td><input type="date" data-k="${i}" data-f="date" value="${esc(String(k.date))}" aria-label="Date"></td>
+        <td class="num"><input type="number" step="10" style="width:90px" data-k="${i}" data-f="amount" value="${k.amount}" aria-label="Amount"></td>
+        <td class="num"><input type="number" step="1" min="0" style="width:56px" data-k="${i}" data-f="every" value="${k.every||0}" aria-label="Repeat every N months"></td>
+        <td><select data-k="${i}" data-f="scale" aria-label="Scales with sales"><option value="">–</option>${Object.keys(P.scale_groups||{}).map(g=>`<option${g===k.scale?' selected':''}>${esc(g)}</option>`).join('')}</select></td>
+        <td><button type="button" data-krm="${i}" aria-label="Remove">✕</button></td></tr>`).join('')}
+      <tr><td colspan="7"><button type="button" id="po-kadd">+ Add</button> <button type="button" id="po-ksave"${Kdirty?'':' disabled'}>Save to budgets.yaml</button> <span class="muted" id="po-kmsg">${Kdirty?'Unsaved: affects this page only until saved.':''}</span></td></tr></tbody></table>`;
+  };
+  const kChanged=(force)=>{Kdirty=true;knownDraw(force);$('#po-ksave').disabled=false;$('#po-kmsg').textContent='Unsaved: affects this page only until saved.';render()};
+  $('#po-known').oninput=e=>{
+    const t=e.target,i=t.dataset.k;if(i==null)return;
+    K[+i][t.dataset.f]=t.dataset.f==='amount'||t.dataset.f==='every'?+t.value||0:t.value;kChanged();
+  };
+  $('#po-known').onclick=async e=>{
+    if(e.target.id==='po-kadd'){K.push({date:P.start+'-01',category:(P.budget||[])[0]?.n||'',amount:0,note:'',every:0,scale:''});kChanged(true);return}
+    const rm=e.target.closest('[data-krm]');if(rm){K.splice(+rm.dataset.krm,1);kChanged(true);return}
+    if(e.target.id!=='po-ksave')return;
+    try{const r=await fetch('/known',{method:'POST',headers:{'X-Budget':'1','Content-Type':'application/json'},body:JSON.stringify({known:K.map(k=>({date:k.date,category:k.category,amount:+k.amount||0,note:k.note||'',every:+k.every||0,scale:k.scale||''}))})});
+      if(!r.ok)throw new Error(await r.text());Kdirty=false;$('#po-kmsg').textContent=await r.text()}
+    catch(err){$('#po-kmsg').textContent=/^(forbidden|\s*)$/.test(err.message)||err instanceof TypeError?'Not served by `budget serve`: edit budgets.yaml known: instead.':err.message}
+  };
   const abDraw=force=>{
     const m=ab();
     if(force||!$('#po-ab').contains(document.activeElement))$('#po-ab').innerHTML=abHtml(m);
     const vals={avail:money(m.avail),cuts:m.cuts?`−${money(m.cuts)} cut`:''};
     for(const r of m.rows){vals[`r:${r.n}`]=money(r.v);vals[`d:${r.n}`]=r.avg==null?'–':sgn(r.v-r.avg);vals[`g:${r.g}`]=money((vals[`g#${r.g}`]=(vals[`g#${r.g}`]||0)+r.v))}
     for(const el of document.querySelectorAll('#po-ab [data-abv]'))el.textContent=vals[el.dataset.abv]??'';
+    knownDraw();
     $('#po-ab-avail').textContent=money(m.avail+S.extra)+(S.extra?` (incl. ${money(S.extra)} extra)`:'');
   };
   $('#po-ab').oninput=e=>{
@@ -850,29 +885,34 @@ function payoff(){
   };
 
   render=force=>{
-    const run=(b,s)=>simulate(b.debts,b.budget,s,S.apr.card,b.L);
+    const run=(b,s)=>simulate(b.debts,b.budget,s,S.apr.card,b.L,true,b.sav);
     const B=build(),B0=build(ALL),debts=B.debts,budget=B.budget,L=B.L,total=sum(debts,d=>d.follow||d.last?0:d.bal),pod=debts.find(d=>d.id==='pod');
     const act=layers(),hyp=act.length>0,hl=act.length>2?`${act.length} hypotheticals`:act.map(layerName).join(' + ');
-    if(!S.order?.length)S.order=simulate(debts,budget,'snowball',S.apr.card,L).ds.filter(d=>!d.follow&&!d.last).sort((a,b)=>(a.done??1e9)-(b.done??1e9)).map(d=>d.id);
+    if(!S.order?.length)S.order=simulate(debts,budget,'snowball',S.apr.card,L,true,B.sav).ds.filter(d=>!d.follow&&!d.last).sort((a,b)=>(a.done??1e9)-(b.done??1e9)).map(d=>d.id);
     const mainIds=debts.filter(d=>!d.follow&&!d.last).map(d=>d.id);
     S.order=[...S.order.filter(id=>id==='borrowed'||mainIds.includes(id)),...mainIds.filter(id=>!S.order.includes(id))];
     const rank=id=>{const i=S.order.indexOf(id);return i<0?1e6:i};
     const strats={snowball:'snowball',avalanche:'avalanche',custom:(a,b)=>rank(a.id)-rank(b.id)||a.bal-b.bal};
     const names={snowball:'Smallest balance first',avalanche:'Highest rate first',custom:'Manual order'};
-    const runs=Object.fromEntries(Object.entries(strats).map(([k,s])=>[k,simulate(debts,budget,s,S.apr.card,L)]));
+    const runs=Object.fromEntries(Object.entries(strats).map(([k,s])=>[k,simulate(debts,budget,s,S.apr.card,L,true,B.sav)]));
     const bestK=Object.keys(runs).sort((a,b)=>runs[a].interest-runs[b].interest||(runs[a].months??1e9)-(runs[b].months??1e9))[0];
     const key=S.strategy==='best'?bestK:strats[S.strategy]?S.strategy:bestK,custom=key==='custom',strat=strat0=strats[key];
     const cur=runs[key],base=hyp?run(B0,strat):cur,r0=S.extra?run(build(only('extra')),strat):cur;
-    SNAP={cur,key,budget,debts,hl:hyp?hl:''};
+    SNAP={sav:B.sav,cur,key,budget,debts,hl:hyp?hl:''};
     const delta=k=>{const d=runs[k].interest-runs[bestK].interest,m=runs[k].months!=null&&runs[bestK].months!=null?runs[k].months-runs[bestK].months:null;
       return d<1?'best':`+${money(d)}${m>0?` · ${span(m)} later`:''}`};
     $('#po-strat').innerHTML=[['best',`Best: ${names[bestK].toLowerCase()}`,`${money(runs[bestK].interest)} interest`],...Object.keys(strats).map(k=>[k,names[k],delta(k)])]
       .map(([k,l,f])=>`<a href="#payoff" data-st="${k}"${S.strategy===k?' aria-current="page"':''}>${esc(l)}<small>${f}</small></a>`).join('');
-    const other=simulate(pod?debts.filter(d=>d.id!=='pod'):[...debts,podDebt()],budget,strat,S.apr.card,L);
+    const other=simulate(pod?debts.filter(d=>d.id!=='pod'):[...debts,podDebt()],budget,strat,S.apr.card,L,true,B.sav);
     const [rNow,rPod]=pod?[other,cur]:[cur,other];
     const fd=r=>`debt-free ${r.months==null?'never':mlabel(addM(P.start,r.months))}${r.short?' · short of minimums':''}`;
     $('#po-scen').innerHTML=[['current','Current plan',fd(rNow)],['pod',`+ ${money(S.pod.amount)} granny pod loan, ${mlabel(S.pod.date)}`,fd(rPod)]]
       .map(([k,l,f])=>`<a href="#payoff" data-sc="${k}"${S.scen===k?' aria-current="page"':''}>${esc(l)}<small>${f}</small></a>`).join('');
+    if(taxCfg){const o=S.tax,tr=t=>{S.tax=t;try{return run(build(),strat)}finally{S.tax=o}},tn=tr('now'),td=tr('defer'),pm=taxCfg.pay_months,mr=(a,b)=>`${mlabel(a)}–${mlabel(b)}`;
+      const sm=r=>`debt-free ${r.months==null?'never':mlabel(addM(P.start,r.months))} · ${money(r.interest)} interest`;
+      $('#po-tax').hidden=false;
+      $('#po-tax').innerHTML=[['now',`Pay 2026 tax now, ${mr(pm[0],pm[pm.length-1])}`,sm(tn)],['defer',`Defer 2026 tax to filing, ${mlabel(taxCfg.filing)}`,sm(td)]]
+        .map(([k,l,f])=>`<a href="#payoff" data-tx="${k}"${S.tax===k?' aria-current="page"':''}>${esc(l)}<small>${f}</small></a>`).join('')}
     const left=new Set(base.ds.filter(d=>d.done!==1).map(d=>d.id));
     const minStart=sum(debts.filter(d=>left.has(d.id)&&!(d.start>1)),d=>d.card?Math.max(35,d.bal*(d.apr/1200+.01)):Math.min(d.pay||0,d.bal));
     const free=r=>r.months==null?'Never':mlabel(addM(P.start,r.months)),ffree=r=>r.fmonths==null?'Never':mlabel(addM(P.start,r.fmonths));
@@ -890,6 +930,7 @@ function payoff(){
         tile(`Interest with ${hl}`,money(cur.interest),`saves ${money(base.interest-cur.interest)}`)]:[]),
       ...(family.length?[tile(hyp?'Friends &amp; family repaid, baseline':'Friends &amp; family repaid',ffree(base),`${money(famTotal)} at 0% · ${after(base)}`),
         ...(hyp?[tile(`Friends &amp; family repaid with ${hl}`,ffree(cur),cur.fmonths!=null&&base.fmonths!=null?`${span(base.fmonths-cur.fmonths)||'0 mo'} sooner · ${after(cur)}`:after(cur))]:[])]:[]),
+      ...(B.sav?[tile('Savings at debt-free',money(cur.sav.final),`${money(cur.sav.deposited)} deposited + ${money(cur.sav.interest)} interest at ${B.sav.apy}%`)]:[]),
       tile('Interest over best order',over<1?'$0':money(over),over<1?`this is the cheapest order (${opt.s})`:`vs ${opt.s}: ${money(opt.r.interest)}, debt-free ${free(opt.r)}${later>0?` (${span(later)} sooner)`:''}`),
     ].join('');
     const eff=(a,b)=>{
@@ -901,8 +942,11 @@ function payoff(){
     hypDraw(hfx,force);
 
     const warn=[];
+    if(saleIdx>1)warn.push(`<b>Before the Windjammer closes (${mlabel(sale.sale.close.slice(0,7))}) you still pay the Valon mortgage and Windjammer utilities:</b> ${money(-(preSale+ab().pre))}/mo comes out of the budget for the first ${saleIdx-1} month${saleIdx>2?'s':''}; the sale proceeds land in ${mlabel(sale.sale.close.slice(0,7))}.`);
     if(minStart>budget)warn.push(`<b>The budget doesn’t cover the minimums.</b> Minimum payments start at ${money(minStart)}/mo against ${money(budget)} available, ${money(minStart-budget)} short. The model puts the gap on a new card at ${S.apr.card}%; that debt is part of the totals.`);
-    if(pod&&cur.short){const need=[...Array(60)].map((_,k)=>(k+1)*100).find(x=>!simulate(debts,budget+x,strat,S.apr.card,L).short);
+    if(cur.gaps.length&&!(pod&&rPod.short>rNow.short)){const g=cur.gaps,f=g[0][0],l=g[g.length-1][0],pk=Math.max(...g.map(x=>x[1]));
+      warn.push(`<b>The budget runs short of minimums</b> in ${mlabel(addM(P.start,f-1))}${l>f?`–${mlabel(addM(P.start,l-1))}`:''} (${g.length} month${g.length>1?'s':''}, up to ${money(pk)}/mo). The gap goes on a new card at ${S.apr.card}%.`)}
+    if(pod&&rPod.short>rNow.short){const need=[...Array(60)].map((_,k)=>(k+1)*100).find(x=>simulate(debts,budget+x,strat,S.apr.card,L,true,B.sav).short<=rNow.short);
       warn.push(`<b>The pod loan doesn’t fit the budget.</b> Its ${money(pod.pay)}/mo payment pushes minimums past the ${money(budget)} budget, and the gap goes on a new card at ${S.apr.card}%. ${need?`It needs about ${money(need)}/mo more (cuts, income or a longer term).`:'Even +$6,000/mo doesn’t cover it.'}`)}
     if(unknown.length)warn.push(`Left out (no balance in <code>assets.yaml</code>): ${unknown.map(d=>esc(short(d.name))).join(', ')}. Their current payments stay in the budget as spending.`);
     const assumedN=debts.filter(d=>d.assumed).length;
@@ -914,6 +958,7 @@ function payoff(){
     if(hyp)series.push({l:hl,c:'var(--s2)',t:cur.total,marks:marks(cur)});
     if(family.length)for(const[r,sr]of[[base,series[0]],...(hyp?[[cur,series[1]]]:[])])if(r.months!=null)
       series.push({l:`Friends & family${hyp?` (${sr===series[0]?'baseline':hl})`:''}`,c:sr.c,t:r.ftotal,from:r.months,dash:true,marks:marks(r,true)});
+    if(B.sav&&cur.sav.final>0)series.push({l:`Savings (${B.sav.apy}% APY)`,c:'var(--s3)',t:cur.sav.bal,dash:true});
     $('#po-legend').innerHTML=series.length>1?series.map(s=>`<span><i style="background:${s.dash?`repeating-linear-gradient(90deg,${s.c} 0 4px,transparent 4px 7px)`:s.c}"></i>${esc(s.l)}</span>`).join(''):'';
     $('#po-chart-sub').textContent=`Total balance at the start of each month from ${mlabel(P.start)}. Interest is charged monthly; minimums are paid first, then everything left goes to the ${{snowball:'smallest balance',avalanche:'highest APR',custom:'next debt in your manual order'}[key]}.${pod?` The ${money(pod.bal)} pod loan is added in ${mlabel(S.pod.date)} and gets only its payment until friends & family are repaid.`:''} Dots mark each debt paid off; hover for names.${family.length?' Dashed: friends & family loans, repaid with the full budget once the rest is gone.':''}`;
     poChart(series);
@@ -927,7 +972,7 @@ function payoff(){
     const when=(r,id)=>{const d=r.ds.find(x=>x.id===id);return d?.done==null?'never':mlabel(addM(P.start,d.done-1))};
     if(custom)for(const d of cur.ds)if(!d.follow&&!S.order.includes(d.id))S.order.push(d.id);
     const byDone=(a,b)=>(a.done??1e9)-(b.done??1e9),mainDs=cur.ds.filter(d=>!d.follow&&!d.last),lastDs=cur.ds.filter(d=>d.last);
-    const rows=[...(custom?mainDs.sort((a,b)=>(a.pri??2)-(b.pri??2)||rank(a.id)-rank(b.id)):mainDs.sort(byDone)),...cur.ds.filter(d=>d.follow).sort((a,b)=>a.follow-b.follow||byDone(a,b)),...lastDs];
+    const rows=[...(custom?mainDs.sort((a,b)=>(a.pri??2)-(b.pri??2)||rank(a.id)-rank(b.id)):mainDs.sort((a,b)=>(a.pri??2)-(b.pri??2)||(key==='snowball'?(debts.find(x=>x.id===a.id)?.bal||0)-(debts.find(x=>x.id===b.id)?.bal||0):b.apr-a.apr)||byDone(a,b))),...cur.ds.filter(d=>d.follow).sort((a,b)=>a.follow-b.follow||byDone(a,b)),...lastDs];
     const nMove=mainDs.length,nMain=nMove;
     $('#po-order').innerHTML=`<table class="bal"><thead><tr><th>#</th>${custom?'<th>Move</th>':''}<th>Debt</th><th class="num">Balance</th><th class="num">APR</th><th class="num">Minimum at start</th><th class="num" title="Monthly payment once this is the focus debt: the budget minus the other debts' minimums">Snowball / mo</th><th>Paid off${hyp?` (${hl})`:''}</th>${hyp?'<th>Paid off (baseline)</th>':''}<th class="num">Interest paid</th></tr></thead><tbody>${rows.map((d,i)=>{
       const orig=debts.find(x=>x.id===d.id),mn=orig?(orig.card?Math.max(35,orig.bal*(orig.apr/1200+.01)):Math.min(orig.pay||0,orig.bal)):0;
@@ -935,7 +980,7 @@ function payoff(){
       const head=d.follow&&i===nMain?`<tr class="ent"><th colspan="${8+custom+hyp}">Friends &amp; family (after debt-free, by priority, no minimums)</th></tr>`:'';
       return`${head}<tr><td class="muted">${i+1}</td>${mv}<td>${esc(d.name)}${d.follow?` <span class="muted">P${d.follow}</span>`:d.last?` <span class="muted">from ${mlabel(S.pod.date)}, minimums only until friends &amp; family are repaid</span>`:''}</td><td class="num">${orig?`${orig.est?'<span class="est">~</span>':''}${money(orig.bal)}`:'–'}</td><td class="num">${d.apr}%${d.assumed?' <span class="muted">assumed</span>':''}</td><td class="num">${money(mn)}</td><td class="num">${d.snow==null?'–':money(d.snow)}</td><td>${when(cur,d.id)}</td>${hyp?`<td>${when(base,d.id)}</td>`:''}<td class="num">${money(d.interest)}</td></tr>`}).join('')}</tbody></table>`;
 
-    const per100=simulate(debts,budget+100,strat,S.apr.card,L);
+    const per100=simulate(debts,budget+100,strat,S.apr.card,L,true,B.sav);
     const fx=(a,b)=>`${money(a.interest-b.interest)} less interest${a.months!=null&&b.months!=null&&a.months>b.months?`, ${span(a.months-b.months)} sooner`:''}`;
     $('#po-ab-sub').textContent=`Baseline: personal accounts, ${mlabel(BM[0])} – ${mlabel(BM.at(-1))} average. Assumed = a plan line filed under the category, else its Actual budget if every source is kept, else the baseline average. Each $1/mo cut goes to debt; another $100/mo = ${fx(cur,per100)}.`;
     abDraw();

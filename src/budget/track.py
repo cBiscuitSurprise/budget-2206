@@ -3,6 +3,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+from budget.known import hits
+
 ACTUALS_FIELDS = ["month", "debt_id", "balance", "as_of"]
 
 
@@ -104,23 +106,27 @@ def seed(root: Path, snap: dict, nw: dict, month: str) -> dict:
     info = {d["id"]: d for d in [*nw["items"], *nw["debts"]]}
     irs = set(nw["plan"].get("irs", {}).get("debts", []))
     want: dict[str, float] = {}
-    principal = 0.0
+    snowball = 0.0
     for d in snap["debts"]:
         pay, prior = d["pay"][i], d["bal0"] if i == 0 else d["bal"][i - 1]
         card = info.get(d["id"], {}).get("card")
-        interest = prior * (d["apr"] or 0) / 1200 if card else 0.0
         if card:
-            want["Card interest & fees"] = want.get("Card interest & fees", 0) + interest
-            principal += pay - interest
+            floor = min(pay, max(35, prior * ((d["apr"] or 0) / 1200 + 0.01)))
+            want["Card minimums"] = want.get("Card minimums", 0) + floor
+            want["Snowball payment"] = want.get("Snowball payment", 0) + pay - floor
+            snowball += pay - floor
             continue
         cat = "IRS" if d["id"] in irs else cats.get(info.get(d["id"], {}).get("category") or "", (0, None))[1]
         if cat:
             want[cat] = want.get(cat, 0) + pay
+    dep = (snap.get("sav") or {}).get("dep") or []
+    if i + 1 < len(dep) and dep[i + 1]:
+        want["Snowball savings"] = dep[i + 1]
     base = yaml.safe_load((root / "budgets.yaml").read_text())
     known = {}
     for k in base.get("known") or []:
-        if str(k["date"])[:7] == month:
+        if hits(k, month):
             known[k["category"]] = known.get(k["category"], 0) + k["amount"]
     cur = month_budget(root, month)
     out = {n: round(v + known.get(n, 0), 2) for n, v in want.items()}
-    return {"month": month, "budgets": out, "current": {n: cur.get(n, 0) for n in out}, "card_principal": round(principal, 2)}
+    return {"month": month, "budgets": out, "current": {n: cur.get(n, 0) for n in out}, "snowball": round(snowball, 2)}

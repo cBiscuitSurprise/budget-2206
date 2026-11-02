@@ -1,11 +1,11 @@
-# Resolved per month: default, then months[YYYY-MM] per category, then plus known entries dated in that month.
+# Resolved per month: default, then starts[<=YYYY-MM], then months[YYYY-MM] per category, then plus known entries dated in that month.
 default:
   Casey paycheck: 16000
   Amanda paycheck: 3452
   High Ridge rent: 1500
   Windjammer mortgage: 0
+  Windjammer utilities: 0
   High Ridge mortgage: 2497.00
-  Windjammer utilities: 365
   High Ridge utilities: 400
   HOA & home services: 0
   Truck payment: 872.81
@@ -19,28 +19,45 @@ default:
   Gym & massage: 86.58
   Medical: 450.99
   Kids activities: 200
-  Card interest & fees: 1000
   Garden shed: 257.50
-  Card payments: 173
-  Tax set-aside: 3750
-  Owner contributions: 1892  # SQeZ pays Anthem 1356 + Shelter 536
+  Card minimums: 2234  # Capital One 1003 + Dogwood 448 + Home Depot 266 + Chase 228 + Synchrony 183 + Reserve 106; interest + 1% of balance, $35 min
+  Snowball payment: 0
+  Snowball savings: 0
+  Tax set-aside: 0
+  Owner contributions: 2102.82  # SQeZ pays Anthem 1356 + Shelter 536 + Quickbooks 75 + ATT 135.82
   Fun money: 250
+# From that month on: replaces the default (months overrides still apply on top).
+starts:
+  2027-01:
+    Tax set-aside: 4125  # safe harbor: 110% of ~$45k 2026 tax (MFJ fed + MO + SE on Parete 1099)
 months:
+  2026-08:
+    Amanda paycheck: 0
+    Windjammer mortgage: 2469.06
+    Windjammer utilities: 365
   2026-09:
     Amanda paycheck: 0
     Windjammer mortgage: 2469.06
+    Windjammer utilities: 365
   2026-10:
     Amanda paycheck: 2589
     Windjammer mortgage: 2469.06
+    Windjammer utilities: 365
+    Owner contributions: 3771.36  # SQeZ pays Anthem 1356 + Shelter 536 + Business Loan 1668.54 + Quickbooks 75 + ATT 135.82
   2026-11:
     Windjammer mortgage: 2469.06
+    Windjammer utilities: 365
+    Owner contributions: 3771.36  # SQeZ pays Anthem 1356 + Shelter 536 + Business Loan 1668.54 + Quickbooks 75 + ATT 135.82
 
 known:
+  - {date: 2026-10-30, category: Owner contributions, amount: 2600.00, note: Jessica (2026-10)}
+  - {date: 2026-11-30, category: Owner contributions, amount: 2600.00, note: Jessica (2026-11)}
+  - {date: 2026-12-30, category: Owner contributions, amount: 2600.00, note: Jessica (2026-12)}
   - {date: 2026-01-20, category: Home & auto insurance, amount: 512.00, note: AmFam auto}
   - {date: 2026-01-20, category: Home & auto insurance, amount: 508.00, note: AmFam umbrella}
   - {date: 2026-01-20, category: Camper payments, amount: 1583.40, note: AmFam camper insurance}
   - {date: 2026-07-20, category: Home & auto insurance, amount: 484.10, note: AmFam auto}
-  - {date: 2027-01-20, category: Home & auto insurance, amount: 512.00, note: AmFam auto (est)}
-  - {date: 2027-01-20, category: Home & auto insurance, amount: 508.00, note: AmFam umbrella (est)}
-  - {date: 2027-01-20, category: Camper payments, amount: 1583.40, note: AmFam camper insurance (est)}
-  - {date: 2027-07-20, category: Home & auto insurance, amount: 484.10, note: AmFam auto (est)}
+  - {date: 2027-01-20, category: Home & auto insurance, amount: 512.00, note: AmFam auto (est), every: 12}
+  - {date: 2027-01-20, category: Home & auto insurance, amount: 508.00, note: AmFam umbrella (est), every: 12}
+  - {date: 2027-01-20, category: Camper payments, amount: 1583.40, note: AmFam camper insurance (est), every: 12, scales_with: Campers}
+  - {date: 2027-07-20, category: Home & auto insurance, amount: 484.10, note: AmFam auto (est), every: 12}

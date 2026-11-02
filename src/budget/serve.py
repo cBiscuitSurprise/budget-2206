@@ -22,19 +22,20 @@ def fingerprint(paths: list[Path]) -> str:
 
 
 def serve(
-    render: Callable[[], str], watch: list[Path], host: str, port: int, save_plan: Callable[[dict], str] | None = None
+    render: Callable[[], str], watch: list[Path], host: str, port: int, saves: dict[str, Callable[[dict], str]] | None = None,
+    allow_hosts: tuple[str, ...] = (),
 ) -> None:
-    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    allowed_hosts = {f"[{h}]:{port}" if ":" in h else f"{h}:{port}" for h in ("127.0.0.1", "localhost", *allow_hosts)}
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
-            ok = save_plan and self.path == "/plan" and self.headers.get("Host") in allowed_hosts
+            ok = saves and self.path in saves and self.headers.get("Host") in allowed_hosts
             ok = ok and self.headers.get("X-Budget") == "1" and self.headers.get("Content-Type", "").startswith("application/json")
             if not ok:
                 self._send(403, "text/plain", "forbidden")
                 return
             try:
-                self._send(200, "text/plain", save_plan(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))))
+                self._send(200, "text/plain", saves[self.path](json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))))
             except Exception as e:
                 self._send(400, "text/plain", str(e))
 

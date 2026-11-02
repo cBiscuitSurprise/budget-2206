@@ -21,6 +21,7 @@ from actual.queries import (
 )
 
 from budget.categorize import Categorized
+from budget.known import default_at, hits
 from budget.ofx import Balance
 
 SINCE = date(2026, 1, 1)
@@ -233,13 +234,14 @@ def _month_amounts(s, month: date) -> dict[str, Decimal]:
 def _known(plan: dict, month: date) -> dict[str, Decimal]:
     out: dict[str, Decimal] = {}
     for k in plan.get("known") or []:
-        if (k["date"].year, k["date"].month) == (month.year, month.month):
+        if hits(k, month.isoformat()[:7]):
             out[k["category"]] = out.get(k["category"], Decimal(0)) + _dec(k["amount"])
     return out
 
 
 def resolve(plan: dict, month: date) -> dict[str, Decimal]:
-    base = {**plan.get("default", {}), **((plan.get("months") or {}).get(month.isoformat()[:7]) or {})}
+    ym = month.isoformat()[:7]
+    base = {**default_at(plan, ym), **((plan.get("months") or {}).get(ym) or {})}
     out = {n: _dec(v) for n, v in base.items()}
     for n, v in _known(plan, month).items():
         out[n] = out.get(n, Decimal(0)) + v
@@ -247,7 +249,8 @@ def resolve(plan: dict, month: date) -> dict[str, Decimal]:
 
 
 def pull_into(plan: dict, month: date, have: dict[str, Decimal]) -> None:
-    key, default, known = month.isoformat()[:7], plan.setdefault("default", {}), _known(plan, month)
+    key, known = month.isoformat()[:7], _known(plan, month)
+    default = default_at(plan, key)
     over = {}
     for n in sorted(have.keys() | default.keys() | known.keys()):
         base = have.get(n, Decimal(0)) - known.get(n, Decimal(0))
@@ -263,7 +266,7 @@ def budgets_diff(plan: dict, cats: dict[str, tuple[str, str]], month: date, url:
     """Rows of (category, actual, plan) that differ, plus Actual's amounts. push=True writes the resolved plan to Actual."""
     group_of = {name: group for group, name in cats.values()}
     want = resolve(plan, month)
-    names = set(plan.get("default", {})) | {n for m in (plan.get("months") or {}).values() for n in m} | {k["category"] for k in plan.get("known") or []}
+    names = set(plan.get("default", {})) | {n for m in [*(plan.get("months") or {}).values(), *(plan.get("starts") or {}).values()] for n in m} | {k["category"] for k in plan.get("known") or []}
     for name in names:
         if name not in group_of:
             raise KeyError(f"unknown category {name!r}")
@@ -271,6 +274,8 @@ def budgets_diff(plan: dict, cats: dict[str, tuple[str, str]], month: date, url:
         have = _month_amounts(a.session, month)
         diff = [(n, have.get(n), want.get(n)) for n in sorted(have.keys() | want.keys()) if have.get(n, Decimal(0)) != want.get(n, Decimal(0))]
         if push:
+            for n, g in group_of.items():
+                get_or_create_category(a.session, n, g)
             for n, _, new in diff:
                 create_budget(a.session, month, get_or_create_category(a.session, n, group_of.get(n, "")), new or Decimal(0))
             a.commit()

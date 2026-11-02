@@ -24,7 +24,7 @@ CHECK_IMAGES = ROOT / "statements" / "checks"
 
 
 def _load():
-    txns, balances = load_dir(ROOT / "statements")
+    txns, balances = load_dir(ROOT / "statements", load_accounts(ACCOUNTS).get("aliases"))
     entities = entity_map(load_accounts(ACCOUNTS))
     rows = categorize(txns, load_rule_sets(ROOT), load_annotations(ROOT / "annotations.csv"), entities)
     return link_owner_money(rows, entities), balances
@@ -75,6 +75,12 @@ def reconcile(month: str) -> None:
         click.echo(line)
 
 
+def _save_known(body: dict) -> str:
+    from budget.known import save
+
+    return f"saved {save(ROOT / 'budgets.yaml', body['known'])} entries"
+
+
 def _save_plan(snap: dict) -> str:
     from budget.track import save_snapshot
 
@@ -110,12 +116,13 @@ def track(month: str) -> None:
 @main.command()
 @click.option("--host", default="127.0.0.1", show_default=True)
 @click.option("--port", default=8765, show_default=True)
-def serve(host: str, port: int) -> None:
+@click.option("--allow-host", multiple=True, help="Extra Host header (IP or name, no port) accepted for saves.")
+def serve(host: str, port: int, allow_host: tuple[str, ...]) -> None:
     """Serve the report locally; rebuilds per request and auto-reloads when inputs change."""
     templates = Path(str(files("budget").joinpath("templates")))
-    watch = [ROOT / "statements", *ROOT.glob("rules*.yaml"), ROOT / "annotations.csv", ACCOUNTS, ASSETS, templates]
+    watch = [ROOT / "statements", *ROOT.glob("rules*.yaml"), ROOT / "annotations.csv", ACCOUNTS, ASSETS, ROOT / "budgets.yaml", templates]
     click.echo(f"serving http://{host}:{port}  (ctrl+c to stop)")
-    run_server(_build, watch, host, port, _save_plan)
+    run_server(_build, watch, host, port, {"/plan": _save_plan, "/known": _save_known}, allow_host)
 
 
 @main.group()
@@ -282,7 +289,7 @@ def plan_budgets(month: str | None) -> None:
     click.echo(f"# plan {snap['committed']}, {r['month']}: paste under months: in budgets.yaml\n  {r['month']}:")
     for n, v in r["budgets"].items():
         click.echo(f"    {n}: {v:.2f}  # now {r['current'][n]:,.2f}")
-    click.echo(f"\n# Actual's projected savings should then read ~{r['card_principal']:,.0f} (card principal paid), if the rest of the month is budgeted to actuals")
+    click.echo(f"\n# Snowball payment is {r['snowball']:,.0f} above card minimums, so Actual's projected savings reads that much lower than before, if the rest of the month is budgeted to actuals")
     click.echo("# Not seeded: Uncategorized, cash and Venmo spending has no budget line (see `budget reconcile`)")
 
 

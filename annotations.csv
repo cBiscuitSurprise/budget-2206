@@ -129,3 +129,6 @@ E65B9E22F089F120AB545D5F730B739B44CE6FEA,Operating,Equipment,spend,Amanda Boyer 
 054A134B3D1D14B6F8CABB635A78AB1EB8B778E8,Financing,SQeZ loan payment,spend,Maryellen Boyer — Personal Loan
 07390B8A037F58832958B827D0E607DD7E4DA948,Checks (labeled),Operating > Donation,spend,Osage High School — DECA
 e85cb5de-8da1-d0e2-c0a2-252fb57a5a2d,Income,Family loan/gift — Mom (passed to SQeZ),income,8/20 Zelle $4k; not rent
+d793b117-5f8e-f71a-00bd-0c294bec5d9f,Crossover → SQeZ,Owner contributions to SQeZ,spend,Cash to Nourished Nest (deposited with check 618b5e25 as $1,700)
+618b5e25-6c0d-d83d-127a-e6dc4c8ea249,Crossover → SQeZ,Owner contributions to SQeZ,spend,Check to Nourished Nest (deposited with $1.2k cash as $1,700)
+2724006A5A0677F71DF8D90DBB5D842B56DED282,Financing,Owner contributions (from personal),transfer,$1.2k cash (d793b117) + $500 check (618b5e25) from joint checking

@@ -33,10 +33,12 @@ Health & kids:
   Medical: [Medical]
   Kids activities: [Kids activities & school]
 Debt paydown:
-  Card interest & fees: [Credit card interest & fees, Reserve line interest & OD fees]
-  Card payments: [Synchrony card payment]
+  Card minimums: [Synchrony card payment, Credit card interest & fees, Reserve line interest & OD fees]
+  Snowball payment: [Snowball payment]
   IRS: [IRS payments]
   Garden shed: [Garden shed payment]
+Investments and Savings:
+  Snowball savings: [Snowball savings]
 Taxes:
   Tax set-aside: [Tax set-aside]
   Tax prep: ["Tax prep (Evers & Co)"]

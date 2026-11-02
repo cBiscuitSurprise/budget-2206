@@ -21,7 +21,7 @@ properties:
       close: 2026-12-01
       commission_pct: 0.06
       pays: [sqez_loan]
-    loan: {name: Windjammer mortgage, lender: Valon, balance: 350000, estimate: true, rate: null, category: Mortgage — Valon}
+    loan: {name: Windjammer mortgage, lender: Valon, balance: 325000, estimate: true, rate: null, category: Mortgage — Valon}
 
   high_ridge:
     address: 31 High Ridge Ct, Kaiser MO 65047
@@ -73,7 +73,7 @@ vehicles:
 
 debts:
   synchrony: {name: Synchrony card, card: true, entity: personal, balance: 4676.03, rate: 34.99, category: Synchrony card payment}
-  garden_shed: {name: Garden shed (rent-to-own, 22 x $257.50 left), entity: personal, balance: 5665, rate: 0, category: Garden shed payment}  # buyout price unknown: check contract
+  garden_shed: {name: Garden shed (rent-to-own, 22 x $257.50 left), entity: personal, balance: 3318.59, rate: 0, category: Garden shed payment}  # buyout price unknown: check contract
   usb_reserve: {account: "152321820663:creditline", rate: 21.9, category: Reserve line payment}
   other_cards: {name: Cards not loaded, card: true, entity: personal, balance: null, rate: null, category: "Other card payments (cards not loaded)?"}
   sqez_loan: {account: "300001262", rate: 8, category: SQeZ loan payment, secured_by: windjammer}
@@ -97,8 +97,11 @@ debts:
 
 # Payoff tab. Budget = personal baseline (minus exclude, minus debt payments the plan takes over) + adjustments + spouse + extra.
 plan:
-  start: "2026-12"
-  baseline: {from: "2026-06", to: "2026-09"}
+  start: "2026-10"
+  pre_sale: [Mortgage — Valon]
+  scale_groups: {Campers: [camper_1, camper_2]}  # known entries with scales_with shrink as these are sold
+  until_sale: [Windjammer utilities]  # budget lines that drop off at closing
+  baseline: {from: "2026-09", to: "2026-09"}
   exclude:
     groups: [Construction & repairs, Crossover → SQeZ]
     categories:
@@ -107,6 +110,8 @@ plan:
       - Transfers in (unidentified source)
       - Family loan/gift — Mom (passed to SQeZ)
       - Amanda — Alpha Engineering
+      - Uncategorized
+      - Cash withdrawals
   add_back: [Credit card interest & fees, Reserve line interest & OD fees]
   adjustments:
     - {name: Anthem family health (paid via SQeZ), monthly: -1356, category: Owner contributions}
@@ -116,16 +121,23 @@ plan:
   # income + adjustments: plan lines on top of the baseline; `category` files one under a categories.yaml budget line.
   income:
     - {name: Amanda paycheck, monthly: 3452, category: Amanda paycheck}
+  # one-month deltas to cash, e.g. a partial paycheck
+  one_time:
+    - {name: Amanda's first paycheck is partial, month: "2026-10", amount: -863}
   closing_pct: 0.015
   apr: {card: 24, vehicle: 8, other: 12, irs: 10}
-  irs: {debts: [tax_2025, tax_2026], months: 72}
+  irs:
+    debts: [tax_2025, tax_2026]
+    months: 72
+    # Tax set-aside scenario: pay `debt` from the set-aside during `pay_months`, or pause it and owe the whole balance at `filing`.
+    current: {debt: tax_2026, filing: "2027-04", pay_months: ["2026-10", "2026-11", "2026-12"]}
   debts: [usb_reserve, home_depot, sqez_card, dogwood_card, capital_one, truck, camper_1, camper_2, synchrony, other_cards,
           tax_2025, tax_2026, hoovers, garden_shed]
   # Friends & family: repaid after `debts` are gone, by priority (1 first), no minimums.
   family: {creaches: 1, aunt_nancy: 2, mom_loans: 3, mom_loan: 3}
   # "Granny pod loan" scenario tab: funded on `date`; minimums only until friends & family are repaid, then extra.
-  pod: {amount: 150000, date: "2027-01", rate: 8.5, years: 20}
+  pod: {amount: 200000, date: "2027-01", rate: 7, years: 20}
   # SQeZ assets to sell; check them on the Payoff tab with month + net proceeds. Optional defaults: amount, date ("YYYY-MM").
   liquidate: [{name: Trailer}, {name: Cabin}, {name: Juicer}, {name: Misc}]
   # Custom payoff priority (extra money goes top-down); omit for snowball. Unlisted debts go last.
-  order: [tax_2025, tax_2026, capital_one, dogwood_card, sqez_card, home_depot, usb_reserve, sale, hoovers, truck, camper_1, camper_2]
+  order: [hoovers, tax_2025, synchrony, capital_one, home_depot, garden_shed, usb_reserve, dogwood_card, sqez_card, tax_2026, sale, truck, camper_1, camper_2]

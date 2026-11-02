@@ -47,9 +47,10 @@ def _ident(path: Path) -> tuple[str, str]:
     return acct, kind.group(1).strip() if kind else ""
 
 
-def parse(path: Path, suffix: str = "") -> tuple[list[Transaction], Balance | None]:
+def parse(path: Path, suffix: str = "", aliases: dict[str, str] | None = None) -> tuple[list[Transaction], Balance | None]:
     text = path.read_text(encoding="latin-1").replace("&amp;", "&")
     account_id = re.search(r"<ACCTID>([^<\r\n]+)", text).group(1).strip()
+    account_id = (aliases or {}).get(account_id, account_id)
     if suffix:
         account_id += suffix
     txns = []
@@ -73,7 +74,7 @@ def parse(path: Path, suffix: str = "") -> tuple[list[Transaction], Balance | No
     return txns, Balance(account_id, float(bal.group(1)), _date(bal.group(2))) if bal else None
 
 
-def load_dir(directory: Path) -> tuple[list[Transaction], dict[str, Balance]]:
+def load_dir(directory: Path, aliases: dict[str, str] | None = None) -> tuple[list[Transaction], dict[str, Balance]]:
     from budget.pdf import is_home_depot, parse_home_depot
 
     seen: dict[tuple[str, str], Transaction] = {}
@@ -88,7 +89,7 @@ def load_dir(directory: Path) -> tuple[list[Transaction], dict[str, Balance]]:
         if path in idents:
             acct, kind = idents[path]
             shared = kind == "CREDITLINE" and len(types[acct]) > 1
-            txns, bal = parse(path, ":creditline" if shared else "")
+            txns, bal = parse(path, ":creditline" if shared else "", aliases)
         elif suffix == ".pdf" and is_home_depot(path):
             txns, bal = parse_home_depot(path)
         else:

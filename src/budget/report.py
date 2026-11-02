@@ -170,7 +170,14 @@ def _net_worth(rows: list[Categorized], balances: dict[str, Balance], cfg: dict,
     plan = data.get("plan")
     if plan:
         plan["budget"] = _budget_lines(assets_path.parent)
+        plan["known"] = _known(assets_path.parent)
     return {"asOf": str(data.get("as_of", "")), "items": items, "debts": debts, "cash": cash, "plan": plan}
+
+
+def _known(root: Path) -> list[dict]:
+    plan = yaml.safe_load((root / "budgets.yaml").read_text())
+    return [{"date": str(k["date"]), "category": k["category"], "amount": k["amount"], "note": k.get("note", ""), "every": k.get("every", 0), "scale": k.get("scales_with", "")}
+            for k in plan.get("known") or []]
 
 
 def _budget_lines(root: Path) -> list[dict]:
@@ -244,4 +251,6 @@ def build(rows: list[Categorized], balances: dict[str, Balance], accounts_path: 
         "tracking": tracking(assets_path.parent),
     }
     template = files("budget").joinpath("templates/cashflow.html").read_text()
+    engine = files("budget").joinpath("templates/engine.js").read_text().split("if(typeof module")[0]
+    template = template.replace("/*__ENGINE__*/", engine)
     return template.replace("/*__DATA__*/null", json.dumps(payload).replace("</", "<\\/"))

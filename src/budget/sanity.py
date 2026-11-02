@@ -8,6 +8,7 @@ from statistics import median
 import yaml
 
 from budget.categorize import Categorized
+from budget.known import default_at, hits
 from budget.ofx import Balance
 from budget.pdf import is_home_depot, parse_home_depot
 
@@ -354,9 +355,9 @@ def run(root: Path, rows: list[Categorized], balances: dict[str, Balance], html:
 def month_budget(root: Path, month: str) -> dict[str, float]:
     """Budgets.yaml resolved for a month: default, then months[month], then known entries dated in it."""
     b = yaml.safe_load((root / "budgets.yaml").read_text())
-    m = {**b["default"], **(b.get("months") or {}).get(month, {})}
+    m = {**default_at(b, month), **(b.get("months") or {}).get(month, {})}
     for k in b.get("known") or []:
-        if str(k["date"])[:7] == month:
+        if hits(k, month):
             m[k["category"]] = m.get(k["category"], 0) + k["amount"]
     return m
 
