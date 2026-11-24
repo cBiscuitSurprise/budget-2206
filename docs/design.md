@@ -18,7 +18,7 @@ Personal finance, plus the books for the smoothie shop (SQeZ, Nourished Nest LLC
 | Business books | Bigcapital (fallback: Akaunting); check it is still maintained first | later |
 | Retirement / investments | Ghostfolio | later |
 | Aggregation | DuckDB, pulled nightly from each app's API | later |
-| Alerts | ntfy + cron | later |
+| Alerts | ntfy (https://ntfy.h.boyer.consulting) + `make nightly` | **built** (sync results only) |
 | Backups | `scripts/backup.sh` → encrypted zip → Google Drive (manual) | **built**; automate later |
 
 ## Flow

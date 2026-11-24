@@ -21,7 +21,7 @@ CADDY_IMAGE = "local/caddy-route53:2.11.7"
 
 
 def _script() -> str:
-    lines = ["set -euo pipefail", "install -d -m 755 /opt/actual/data /opt/actual/caddy"]
+    lines = ["set -euo pipefail", "install -d -m 755 /opt/actual/data /opt/actual/caddy /opt/actual/ntfy"]
     for dst, src in FILES.items():
         lines.append(f"echo {base64.b64encode((REPO / src).read_bytes()).decode()} | base64 -d > {dst}")
     lines += [

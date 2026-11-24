@@ -45,12 +45,24 @@ Admin access to the instance is SSM only (no SSH): `aws ssm start-session --prof
 | `/opt/actual/docker-compose.yml` | [deploy/actual-server.compose.yml](../deploy/actual-server.compose.yml) |
 | `/opt/actual/caddy/*` | [deploy/caddy/](../deploy/caddy/) |
 | `/opt/actual/data` | Actual's data (back it up with `budget export`, below) |
+| `/opt/actual/ntfy` | ntfy message cache (72h; not backed up) |
 | `/etc/sysctl.d/90-nebula-bind.conf` | `net.ipv4.ip_nonlocal_bind=1` |
 
 - **Deploy config changes:** `uv run python scripts/deploy.py`. It writes all the files above over SSM, restarts Nebula, rebuilds the Caddy image and runs `docker compose up -d`.
 - **Docker on AL2023 has no buildx.** Caddy is built with `docker build` and tagged `local/caddy-route53:2.11.7`; compose only references the tag.
 - **The certificate** is a wildcard `*.h.boyer.consulting` obtained via DNS-01. Caddy renews it on its own. The Route 53 sync wait and the 30 s propagation delay in the Caddyfile are required; without them, Let's Encrypt queries before the TXT record exists.
 - **Upgrading Actual:** bump the image tag in the compose file and bump `actualpy` in `pyproject.toml` to a version that supports it, then deploy.
+
+## Apps
+
+| URL | Upstream | Notes |
+|---|---|---|
+| https://actual.h.boyer.consulting | `127.0.0.1:5006` | Actual Budget |
+| https://ntfy.h.boyer.consulting | `127.0.0.1:2586` | ntfy; no auth (mesh-only). Topic `budget` gets `make nightly` results |
+
+To add one: a service in the compose file bound to `127.0.0.1`, a `@host` block in the Caddyfile, and a kc-man Route 53 A record `<name>.h` → `10.42.0.1`. Then deploy.
+
+**Nightly sync:** Windows Task Scheduler runs `make nightly` in WSL. It appends to `.data/sync.log` and posts the result to ntfy (high priority on failure).
 
 ## Adding a device
 

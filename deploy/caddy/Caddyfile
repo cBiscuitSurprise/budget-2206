@@ -19,6 +19,11 @@
 		reverse_proxy 127.0.0.1:5006
 	}
 
+	@ntfy host ntfy.h.boyer.consulting
+	handle @ntfy {
+		reverse_proxy 127.0.0.1:2586
+	}
+
 	handle {
 		abort
 	}

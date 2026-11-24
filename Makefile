@@ -2,11 +2,20 @@
 export
 DAYS ?= 3
 LOG := .data/serve.log
-.PHONY: up down restart status logs sync
+.PHONY: up down restart status logs sync nightly
 
 sync:
 	uv run budget simplefin pull --days $(DAYS)
 	uv run budget push
+
+NTFY ?= https://ntfy.h.boyer.consulting/budget
+nightly:
+	@mkdir -p .data
+	@if $(MAKE) --no-print-directory sync >> .data/sync.log 2>&1; then \
+	  curl -s -o /dev/null -H "Tags: white_check_mark" -d "sync ok: $$(tail -1 .data/sync.log)" $(NTFY); \
+	else \
+	  curl -s -o /dev/null -H "Priority: high" -H "Tags: rotating_light" -d "sync FAILED: $$(tail -1 .data/sync.log)" $(NTFY); \
+	fi
 
 up:
 	@mkdir -p .data
