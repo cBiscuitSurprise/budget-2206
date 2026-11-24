@@ -3,7 +3,7 @@ Transfers:
   - {category: Reserve line draw (overdraft), kind: transfer, accounts: ["152321820663", "152321820663:creditline"], match: ["OD PROTECTION TRANSFER"]}
   - {category: Reserve line payment, kind: transfer, since: 2026-04-18, match: ["AUTO PAYMENT TO RESERVE LINE"]}
   - {category: Reserve line payment, kind: transfer, accounts: ["152321820663:creditline"], match: ["RESERVE LINE PAYMENT", "PAYMENT TO CREDIT LINE"]}
-  - {category: Savings ↔ checking, kind: transfer, match: ["FUNDS TRANSFER-(DEBIT|CREDIT)", "OD PROTECTION TRANSFER"]}
+  - {category: Savings ↔ checking, kind: transfer, match: ["FUNDS TRANSFER-(DEBIT|CREDIT)", "OD PROTECTION TRANSFER", "INTERNET BANKING TRANSFER"]}
   - category: Capital One payment
     kind: transfer
     match: ["WEB AUTHORIZED PMT CAPITAL ONE", "CAPITAL ONE (MOBILE|AUTOPAY|ONLINE) PYMT"]
@@ -82,7 +82,7 @@ Construction & repairs:
   - {category: Hardware & building supplies, kind: spend, match: [LOWES, MENARDS, HOME DEPOT, HARBOR FREIGHT]}
 
 Crossover → SQeZ:
-  - {category: Paid SQeZ expenses personally, kind: spend, match: [JUICED, WESTROCK, SYSCO]}
+  - {category: Paid SQeZ expenses personally, kind: spend, match: [JUICED, WESTROCK, SYSCO, "FSP\\*?\\s*FOUNDATION"]}
   - {category: Purchases at SQeZ, kind: spend, match: [SQEZ]}
 
 Cash & P2P:

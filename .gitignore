@@ -6,3 +6,4 @@ checks/
 statements/
 reports/
 Debt view.xlsx
+.env

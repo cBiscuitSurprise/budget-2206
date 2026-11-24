@@ -5,21 +5,21 @@ entities:
   sqez: {name: SQeZ, note: Nourished Nest LLC, all_in: [Paid SQeZ expenses personally, SQeZ — Square deposits]}
 
 accounts:
-  "152307503325": {name: US Bank Joint Checking, short: USB-3325, role: anchor, entity: personal}
-  "252302577082": {name: US Bank Savings, short: USB-7082, role: savings, entity: personal}
-  "7014": {name: Capital One Card, short: C1-7014, role: card, entity: personal}
-  "152321820663": {name: Dogwood checking (house flip), short: USB-0663, role: checking, entity: personal}
-  "152321820663:creditline": {name: Dogwood reserve line (overdraft credit), short: USB-RL, role: card, entity: personal}
-  "559257XXXXXX3173": {name: Dogwood credit card (house flip), short: USB-3173, role: card, entity: personal}
+  "152307503325": {name: US Bank Joint Checking, short: USB-3325, role: anchor, entity: personal, simplefin: ACT-da6e7696-a2bc-45fc-a56a-ea55da7118f1}
+  "252302577082": {name: US Bank Savings, short: USB-7082, role: savings, entity: personal, simplefin: ACT-355af3dd-5bfe-4bc1-9983-475dd2a0638d}
+  "7014": {name: Capital One Card, short: C1-7014, role: card, entity: personal, simplefin: ACT-42feeee2-7072-4eba-a0cf-9fccba0faf85}
+  "152321820663": {name: Dogwood checking (house flip), short: USB-0663, role: checking, entity: personal, simplefin: ACT-9cf809db-7383-490e-a417-1c2fe4852366}
+  "152321820663:creditline": {name: Dogwood reserve line (overdraft credit), short: USB-RL, role: card, entity: personal, simplefin: ACT-264fc6b5-9cac-476b-9e47-4c55638010e7}
+  "559257XXXXXX3173": {name: Dogwood credit card (house flip), short: USB-3173, role: card, entity: personal, simplefin: ACT-85acf48a-1be9-41f1-ad35-a3cc7fe82ba9}
   "2016": {name: "Home Depot card (Dogwood, reno supplies)", short: HD-2016, role: card, entity: personal}
-  "110002092": {name: High Ridge mortgage, short: MA-HighRidge, role: loan, entity: personal}
-  "1102049": {name: Clara savings, short: Clara, role: savings, entity: personal, kids: true}
-  "1102050": {name: Hazel savings, short: Hazel, role: savings, entity: personal, kids: true}
-  "1102051": {name: Ruby savings, short: Ruby, role: savings, entity: personal, kids: true}
-  "728349": {name: Home Base checking, short: MA-HomeBase, role: anchor, entity: home_base}
-  "40195315": {name: Pawnee mortgage, short: MA-Pawnee, role: loan, entity: home_base}
-  "9013318": {name: Nourished Nest checking, short: MA-3318, role: anchor, entity: sqez}
-  "300001262": {name: SQeZ loan, short: MA-SQeZloan, role: loan, entity: sqez}
+  "110002092": {name: High Ridge mortgage, short: MA-HighRidge, role: loan, entity: personal, simplefin: ACT-0d3bd1cb-3d4c-44ca-8c05-a2bda47c7c0d}
+  "1102049": {name: Clara savings, short: Clara, role: savings, entity: personal, kids: true, simplefin: ACT-4d1ce4bc-fb00-4609-91f8-c5a6ede79e3c}
+  "1102050": {name: Hazel savings, short: Hazel, role: savings, entity: personal, kids: true, simplefin: ACT-25cbdabc-ca87-4916-9af3-8645dd5ae356}
+  "1102051": {name: Ruby savings, short: Ruby, role: savings, entity: personal, kids: true, simplefin: ACT-45833613-0a1b-4aa5-9330-a0021beea35c}
+  "728349": {name: Home Base checking, short: MA-HomeBase, role: anchor, entity: home_base, simplefin: ACT-1b2c2b67-003a-476f-8496-615cc131e9e4}
+  "40195315": {name: Pawnee mortgage, short: MA-Pawnee, role: loan, entity: home_base, simplefin: ACT-ff97a951-8c8c-4f95-a5f7-74b36851f8a8}
+  "9013318": {name: Nourished Nest checking, short: MA-3318, role: anchor, entity: sqez, simplefin: ACT-07ee358a-3772-4563-9f81-45f8da2405a1}
+  "300001262": {name: SQeZ loan, short: MA-SQeZloan, role: loan, entity: sqez, simplefin: ACT-770176a4-9ae2-42b7-83fd-344500d57a3e}
   "1037132510-1007": {name: SQeZ Chase business card, short: SQeZ-CC, role: card, entity: sqez}
 
 aliases:

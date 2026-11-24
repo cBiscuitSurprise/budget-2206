@@ -1,5 +1,5 @@
 import csv
-from datetime import date
+from datetime import date, timedelta
 from importlib.resources import files
 from pathlib import Path
 
@@ -23,8 +23,17 @@ CHECKS = ROOT / "checks"
 CHECK_IMAGES = ROOT / "statements" / "checks"
 
 
+SIMPLEFIN_URL = ROOT / ".data" / "simplefin.url"
+ACTUAL_URL = "https://actual.h.boyer.consulting"
+
+
+def _simplefin_ids(cfg: dict) -> dict[str, str]:
+    return {v["simplefin"]: k for k, v in cfg["accounts"].items() if v.get("simplefin")}
+
+
 def _load():
-    txns, balances = load_dir(ROOT / "statements", load_accounts(ACCOUNTS).get("aliases"))
+    cfg = load_accounts(ACCOUNTS)
+    txns, balances = load_dir(ROOT / "statements", cfg.get("aliases"), _simplefin_ids(cfg))
     entities = entity_map(load_accounts(ACCOUNTS))
     rows = categorize(txns, load_rule_sets(ROOT), load_annotations(ROOT / "annotations.csv"), entities)
     return link_owner_money(rows, entities), balances
@@ -192,7 +201,7 @@ def apply_rules(dry_run: bool) -> None:
 
 
 @main.command()
-@click.option("--url", default="http://localhost:5006", show_default=True)
+@click.option("--url", envvar="ACTUAL_URL", default=ACTUAL_URL, show_default=True)
 @click.option("--password", envvar="ACTUAL_PASSWORD", required=True)
 @click.option("--file", "file_", default="My Finances", show_default=True)
 @click.option("--dry-run", is_flag=True)
@@ -201,6 +210,80 @@ def push(url: str, password: str, file_: str, dry_run: bool) -> None:
     rows, balances = _load()
     counts = run_push(rows, balances, load_accounts(ACCOUNTS), category_map(ROOT / "categories.yaml"), yaml.safe_load((ROOT / "cash.yaml").read_text()), yaml.safe_load(ASSETS.read_text()), url, password, file_, dry_run)
     click.echo(("dry run: " if dry_run else "") + ", ".join(f"{k} {v}" for k, v in counts.items()))
+
+
+@main.command()
+@click.argument("out", type=click.Path(dir_okay=False, path_type=Path))
+@click.option("--url", envvar="ACTUAL_URL", default=ACTUAL_URL, show_default=True)
+@click.option("--password", envvar="ACTUAL_PASSWORD", required=True)
+@click.option("--file", "file_", default="My Finances", show_default=True)
+def export(out: Path, url: str, password: str, file_: str) -> None:
+    """Export the Actual budget as a zip that Actual's "Import → Actual" can restore."""
+    from actual import Actual
+
+    with Actual(url, password=password, file=file_) as a:
+        out.write_bytes(a.export_data())
+    click.echo(f"exported {out} ({out.stat().st_size // 1024} KiB)")
+
+
+@main.group()
+def simplefin() -> None:
+    """Pull transactions from SimpleFIN Bridge into statements/simplefin/."""
+
+
+@simplefin.command("claim")
+@click.argument("setup_token")
+def simplefin_claim(setup_token: str) -> None:
+    """Exchange a one-time setup token for the access URL (saved to .data/simplefin.url, mode 600)."""
+    from budget.simplefin import claim
+
+    claim(setup_token, SIMPLEFIN_URL)
+    click.echo(f"saved {SIMPLEFIN_URL}")
+
+
+def _access_url() -> str:
+    if not SIMPLEFIN_URL.exists():
+        raise click.ClickException("run `budget simplefin claim <setup-token>` first")
+    return SIMPLEFIN_URL.read_text().strip()
+
+
+@simplefin.command("accounts")
+def simplefin_accounts() -> None:
+    """List SimpleFIN accounts and which accounts.yaml entry each maps to (`simplefin: <id>`)."""
+    from budget.simplefin import fetch
+
+    today = date.today()
+    data = fetch(_access_url(), today, today)
+    mapped = _simplefin_ids(load_accounts(ACCOUNTS))
+    for a in data.get("accounts", []):
+        org = a.get("org", {}).get("name", "?")
+        click.echo(f"{a['id']:<40} {org:<24} {a['name']:<32} {a['balance']:>12}  -> {mapped.get(a['id'], 'UNMAPPED')}")
+    for e in data.get("errors", []):
+        click.echo(f"error: {e}", err=True)
+
+
+@simplefin.command("pull")
+@click.option("--days", default=30, show_default=True, help="Look-back window; overlap with earlier pulls is deduped by transaction id.")
+def simplefin_pull(days: int) -> None:
+    """Fetch the last N days and save the raw response to statements/simplefin/<timestamp>.json."""
+    import json
+    from datetime import datetime
+
+    from budget.simplefin import fetch
+
+    end, stamp = date.today(), f"{datetime.now():%Y-%m-%dT%H%M%S}"
+    url, first = _access_url(), date.today() - timedelta(days=days)
+    while end >= first:
+        start = max(first, end - timedelta(days=43))
+        data = fetch(url, start, end)
+        out = ROOT / "statements" / "simplefin" / f"{stamp}_{start.isoformat()}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(data, indent=1))
+        n = sum(len(a.get("transactions", [])) for a in data.get("accounts", []))
+        click.echo(f"{start}..{end}: {len(data.get('accounts', []))} accounts, {n} transactions -> {out.name}")
+        for e in data.get("errors", []):
+            click.echo(f"error: {e}", err=True)
+        end = start - timedelta(days=1)
 
 
 @main.group()
@@ -239,7 +322,7 @@ def _sync_options(f):
     for opt in (
         click.option("--file", "file_", default="My Finances", show_default=True),
         click.option("--password", envvar="ACTUAL_PASSWORD", required=True),
-        click.option("--url", default="http://localhost:5006", show_default=True),
+        click.option("--url", envvar="ACTUAL_URL", default=ACTUAL_URL, show_default=True),
         click.argument("months", nargs=-1, required=True),
     ):
         f = opt(f)

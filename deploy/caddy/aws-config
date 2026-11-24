@@ -1,0 +1,3 @@
+[profile acme]
+role_arn = arn:aws:iam::366069636416:role/acme-dns-h-boyer
+credential_source = Ec2InstanceMetadata

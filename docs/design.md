@@ -8,23 +8,23 @@ Personal finance, plus the books for the smoothie shop (SQeZ, Nourished Nest LLC
 - Alerts when spending is off plan.
 - **Pay down the debt** (added Oct 2026): keep a living payoff plan and check actual spending against it every month.
 
-## Stack (Docker Compose on a personal server, reachable only over Tailscale)
+## Stack (EC2 `dev-casey`, reachable only over Nebula; ops runbook: [infra.md](infra.md))
 
 | Layer | Tool | Status |
 |---|---|---|
 | Ingest + categorize | Python `uv` project, `click` CLI (`budget`) | **built** |
 | Exploration reports | `budget report` builds `reports/cashflow.html` | **built** |
-| Personal budget | Actual Budget | **next** |
+| Personal budget | Actual Budget at https://actual.h.boyer.consulting | **built** |
 | Business books | Bigcapital (fallback: Akaunting); check it is still maintained first | later |
 | Retirement / investments | Ghostfolio | later |
 | Aggregation | DuckDB, pulled nightly from each app's API | later |
 | Alerts | ntfy + cron | later |
-| Backups | restic, nightly, one per app volume | with Actual |
+| Backups | `scripts/backup.sh` → encrypted zip → Google Drive (manual) | **built**; automate later |
 
 ## Flow
 ```
-bank QFX/OFX/PDF (downloaded by hand)  ─┐
-                                        ├─► budget ingest + categorize ──► review queue (unknowns → rules)
+SimpleFIN Bridge (nightly pull)        ─┐
+bank QFX/OFX/PDF (by hand, fallback)   ─┼─► budget ingest + categorize ──► review queue (unknowns → rules)
 check images (downloaded by hand)      ─┘          │
                                        ┌───────────┼──────────────┐
                                     Actual     Bigcapital     cashflow.html
@@ -33,15 +33,19 @@ check images (downloaded by hand)      ─┘          │
 
 ## Rules
 - Each app owns its data. DuckDB is a read model that can be thrown away and rebuilt.
-- **Ingest:** OFX/QFX first, CSV second, PDF only as a fallback (`pdf.py`). We download statements by hand.
-- **No bank automation:** no automatic logins and no getting around bot detection.
-  - This also applies to check images: download them by hand, then run `budget checks apply`.
+- **Ingest:** SimpleFIN Bridge first (`budget simplefin pull`, nightly). Then OFX/QFX, CSV, and PDF only as a fallback (`pdf.py`) for accounts SimpleFIN can't reach.
+  - Raw SimpleFIN responses are saved to `statements/simplefin/*.json` and parsed like any statement, so the rules and review queue still apply. Actual's own bank sync stays off.
+  - An account opts in with `simplefin: <id>` in `accounts.yaml` (`budget simplefin accounts` lists the ids).
+  - Feed rows a downloaded statement already covers are dropped (same account and amount within 3 days, up to that account's last statement date).
+  - **Tradeoff, accepted Nov 2026:** SimpleFIN (backed by MX) holds read access to the banks. That's the only outside service holding financial data.
+- **No scripted bank logins:** no Playwright clicking through bank sites, no getting around bot detection. This protects the bank logins from lockouts and IP bans. Aggregator and official-API access are fine.
+  - Check images are still downloaded by hand, then `budget checks apply`.
 - **Categorize:**
   - Exact payee rules first: `rules.yaml` and `rules.<entity>.yaml`. The first rule that matches wins, and `since:` handles card double-counting.
   - Then manual annotations in `annotations.csv`, keyed by transaction.
   - Anything left goes to `budget unknowns`. Each correction becomes a rule.
   - Claude helps with unknowns. It does not categorize automatically.
-- Dedupe on the bank's transaction ID (FITID).
+- Dedupe on the bank's transaction ID (FITID), or `sf:<id>` for SimpleFIN rows.
 - **Business ↔ personal money moves only as owner contributions or draws:**
   - `link_owner_money` pairs moves of the same amount within 4 days.
   - Aggregation reconciles both sides so net worth doesn't count anything twice.
@@ -49,9 +53,10 @@ check images (downloaded by hand)      ─┘          │
   - SQeZ's real result ("all-in") is the SQeZ net, plus personal rows paying SQeZ costs, minus Square deposits that landed in personal accounts.
 - Card charges that are business-related go to "Business: reimbursable" in Actual, then get exported to the business books.
 - **Private data:**
-  - Everything stays local or on the Tailnet.
-  - Servers listen only on 127.0.0.1 or the Tailscale interface.
-  - Nothing gets published to outside services.
+  - Everything stays local or on the Nebula network.
+  - Servers listen only on 127.0.0.1 or the Nebula interface.
+  - Nothing gets published to outside services, apart from the SimpleFIN tradeoff above.
+  - The SimpleFIN access URL is a bearer credential. It lives in `.data/simplefin.url` (mode 600, gitignored).
 
 ## Source files
 
@@ -126,15 +131,14 @@ check images (downloaded by hand)      ─┘          │
 - Move the plan targets into Actual's category budgets so tracking the plan is a monthly review, not a model run.
 - Fix the horizontal overflow at phone width.
 
-## Actual Budget setup (next)
+## Actual Budget setup
 
 **Scope:**
 - **Personal entity only.** SQeZ and Home Base go to the business books later.
 - Until then, the cashflow report stays the view for those entities.
 
 **Deploy:**
-- `actualbudget/actual-server` in Docker Compose, with a volume for `/data` that restic backs up.
-- Reachable only over Tailscale.
+- `actualbudget/actual-server` in Docker Compose on EC2, behind Caddy (TLS), reachable only over Nebula. See [infra.md](infra.md).
 - Pin the image version, because the import client below depends on it.
 
 **Accounts:**
@@ -166,9 +170,7 @@ check images (downloaded by hand)      ─┘          │
 - Put the debt allotment in a "Debt paydown" category group.
 
 **Bank sync:**
-- SimpleFIN Bridge (~$15/yr) would replace the manual QFX downloads where it covers the bank.
-- It is an approved aggregator, not scraping.
-- Decide after a month of manual imports. Check coverage first for US Bank, Capital One, Chase, Mid America and the Citi (Home Depot) card.
+- SimpleFIN Bridge (~$15/yr), an approved aggregator, not scraping. `make sync` pulls it into Actual.
 
 ## Import runbook
 

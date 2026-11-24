@@ -74,11 +74,19 @@ def parse(path: Path, suffix: str = "", aliases: dict[str, str] | None = None) -
     return txns, Balance(account_id, float(bal.group(1)), _date(bal.group(2))) if bal else None
 
 
-def load_dir(directory: Path, aliases: dict[str, str] | None = None) -> tuple[list[Transaction], dict[str, Balance]]:
+def load_dir(
+    directory: Path, aliases: dict[str, str] | None = None, simplefin_ids: dict[str, str] | None = None
+) -> tuple[list[Transaction], dict[str, Balance]]:
+    from budget import simplefin
     from budget.pdf import is_home_depot, parse_home_depot
 
     seen: dict[tuple[str, str], Transaction] = {}
     balances: dict[str, Balance] = {}
+
+    def _balance(bal: Balance) -> None:
+        if bal.account_id not in balances or bal.as_of >= balances[bal.account_id].as_of:
+            balances[bal.account_id] = bal
+
     paths = sorted(directory.rglob("*"))
     idents = {p: _ident(p) for p in paths if p.suffix.lower() in {".ofx", ".qfx", ".qbo"}}
     types: dict[str, set[str]] = {}
@@ -96,6 +104,15 @@ def load_dir(directory: Path, aliases: dict[str, str] | None = None) -> tuple[li
             continue
         for t in txns:
             seen.setdefault((t.account_id, t.fitid), t)
-        if bal and (bal.account_id not in balances or bal.as_of >= balances[bal.account_id].as_of):
-            balances[bal.account_id] = bal
+        if bal:
+            _balance(bal)
+    feed: dict[tuple[str, str], Transaction] = {}
+    for path in sorted((directory / "simplefin").glob("*.json")):
+        txns, bals = simplefin.parse(path, simplefin_ids or {})
+        for t in txns:
+            feed.setdefault((t.account_id, t.fitid), t)
+        for bal in bals:
+            _balance(bal)
+    for t in simplefin.merge(list(seen.values()), list(feed.values())):
+        seen[(t.account_id, t.fitid)] = t
     return sorted(seen.values(), key=lambda t: (t.posted, t.account_id, t.fitid)), balances

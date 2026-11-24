@@ -1,0 +1,25 @@
+{
+	auto_https disable_redirects
+}
+
+*.h.boyer.consulting {
+	bind 10.42.0.1
+	tls {
+		dns route53 {
+			profile acme
+			hosted_zone_id Z06264492NMTRZQZZLN7V
+			wait_for_route53_sync true
+		}
+		propagation_delay 30s
+		resolvers 1.1.1.1
+	}
+
+	@actual host actual.h.boyer.consulting
+	handle @actual {
+		reverse_proxy 127.0.0.1:5006
+	}
+
+	handle {
+		abort
+	}
+}
