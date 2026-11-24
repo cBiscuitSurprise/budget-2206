@@ -17,7 +17,7 @@ phone / laptop / Windows ──Nebula UDP 4242──► s1.h.boyer.consulting (E
 | EC2 lighthouse | 10.42.0.1 | `lighthouse` | `/etc/nebula/` on the instance; the key never left it |
 | Laptop (WSL, arm64) | 10.42.0.2 | `admin` | `~/.config/nebula/laptop.*` → `/etc/nebula/` |
 | Casey's phone | 10.42.0.3 | `admin` | Mobile Nebula (key on the phone) |
-| Wife's phone | 10.42.0.4 | `admin` | not signed yet |
+| Amanda's phone | 10.42.0.4 | `admin` | Mobile Nebula (key on the phone) |
 | Windows host (arm64) | 10.42.0.5 | `admin` | `C:\nebula\` |
 
 - **CA:** "boyer-mesh", v2 certs, expires 2031-11. `ca.key` exists only in `~/.config/nebula/` and the backup.
