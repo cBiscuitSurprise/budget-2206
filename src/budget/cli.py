@@ -267,12 +267,12 @@ def simplefin_accounts() -> None:
 def simplefin_pull(days: int) -> None:
     """Fetch the last N days and save the raw response to statements/simplefin/<timestamp>.json."""
     import json
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from budget.simplefin import fetch
 
-    end, stamp = date.today(), f"{datetime.now():%Y-%m-%dT%H%M%S}"
-    url, first = _access_url(), date.today() - timedelta(days=days)
+    end, stamp = datetime.now(timezone.utc).date(), f"{datetime.now():%Y-%m-%dT%H%M%S}"
+    url, first = _access_url(), end - timedelta(days=days)
     while end >= first:
         start = max(first, end - timedelta(days=43))
         data = fetch(url, start, end)

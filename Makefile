@@ -1,6 +1,7 @@
 -include .env
 export
 DAYS ?= 3
+PATH := $(HOME)/.local/bin:$(PATH)
 LOG := .data/serve.log
 .PHONY: up down restart status logs sync nightly
 

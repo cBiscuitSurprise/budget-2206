@@ -8,7 +8,7 @@ Personal finance, plus the books for the smoothie shop (SQeZ, Nourished Nest LLC
 - Alerts when spending is off plan.
 - **Pay down the debt** (added Oct 2026): keep a living payoff plan and check actual spending against it every month.
 
-## Stack (EC2 `dev-casey`, reachable only over Nebula; ops runbook: [infra.md](infra.md))
+## Stack (EC2 `dev-casey`, reachable only over Nebula; ops runbook: `../hl-boyer-mesh/docs/infra.md`)
 
 | Layer | Tool | Status |
 |---|---|---|
@@ -138,7 +138,7 @@ check images (downloaded by hand)      ─┘          │
 - Until then, the cashflow report stays the view for those entities.
 
 **Deploy:**
-- `actualbudget/actual-server` in Docker Compose on EC2, behind Caddy (TLS), reachable only over Nebula. See [infra.md](infra.md).
+- `actualbudget/actual-server` in Docker Compose on EC2, behind Caddy (TLS), reachable only over Nebula. See `../hl-boyer-mesh/docs/infra.md`.
 - Pin the image version, because the import client below depends on it.
 
 **Accounts:**
