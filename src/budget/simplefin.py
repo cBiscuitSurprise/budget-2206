@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -14,6 +15,12 @@ from budget.ofx import Balance, Transaction
 _CHECK = re.compile(r"^CHECK\s*#?\s*(\d+)", re.I)
 MATCH_DAYS = 3
 USER_AGENT = "budget-cli/0.1"
+NOT_READY_RETRIES = 10
+NOT_READY_WAIT = 30
+
+
+class NotReady(Exception):
+    pass
 
 
 def _open(req: urllib.request.Request, timeout: int):
@@ -22,6 +29,8 @@ def _open(req: urllib.request.Request, timeout: int):
         return urllib.request.urlopen(req, timeout=timeout)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")[:300]
+        if e.code == 307 and "not ready" in body.lower():
+            raise NotReady from None
         raise RuntimeError(f"SimpleFIN {e.code} from {urlsplit(req.full_url).hostname}: {body}") from None
 
 
@@ -44,8 +53,15 @@ def fetch(access_url: str, start: date, end: date) -> dict:
     req = urllib.request.Request(f"{base}/accounts?start-date={epoch(start)}&end-date={epoch(end + timedelta(days=1))}")
     token = base64.b64encode(f"{parts.username}:{parts.password}".encode()).decode()
     req.add_header("Authorization", f"Basic {token}")
-    with _open(req, 120) as r:
-        return json.load(r)
+    for attempt in range(NOT_READY_RETRIES + 1):
+        try:
+            with _open(req, 120) as r:
+                return json.load(r)
+        except NotReady:
+            if attempt == NOT_READY_RETRIES:
+                raise RuntimeError("SimpleFIN response still not ready after retries") from None
+            time.sleep(NOT_READY_WAIT)
+    raise AssertionError("unreachable")
 
 
 def _day(ts: int) -> date:
